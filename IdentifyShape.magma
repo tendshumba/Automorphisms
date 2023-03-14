@@ -1,0 +1,170 @@
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Suppose that A is a an algebra and suppose that pair:=[a_0,a_1] is+
++ a pair of axes. What type of dihedral agebra does it generate?    +
++ We can find the dihedral group, and the subAlg code can give us   +
++the dimension of the algebra, thereby narrowing the possibilities. +
++ We then check which is satisfied. SubAlg_v3.m must be loaded.     +
++The tau matrices t_0,t_1, of a_0,a_1 resp are required. Load       +
++ TauMapMoster                                                      +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+IdentifyShape:=function(lst)/*must really be axial vectors.*/
+A:=Parent(lst[1]);
+ax:=[];
+shape:="";
+inds:=[];
+ord:=1;
+pow_id:=false;
+bas_dihed:=lst;
+t0:=TauMapMonster(bas_dihed[1]);
+t1:=TauMapMonster(bas_dihed[2]);
+rho:=t0*t1;
+rho_pow:=rho;
+W:=VectorSpace(Rationals(),Dimension(Parent(bas_dihed[1])));
+while pow_id eq false do
+      if rho_pow eq Identity(Parent(rho)) then
+      	 pow_id:=true;
+      else
+	rho_pow*:=rho;
+	ord +:=1;
+      end if;
+end while;
+/*At this stage we have n= ord in nL.*/
+dim:=Dimension(SubAlg(bas_dihed,"a"));
+V:=VectorSpace(Rationals(),dim);
+/*The last calculation  narrows the choice of L in nL. It remains
+to check the possibilities for nL*/
+if ord eq 1 and dim eq 1 then
+   shape*:="1A";
+   
+elif ord eq 2 and dim eq 3 then /* the 2A case.*/
+     strings:=["a_o","a_1","a_{rho}"];
+     bas:=bas_dihed cat [bas_dihed[1]+bas_dihed[2]-8*(bas_dihed[1]*bas_dihed[2])];
+/*to beutify things and have the multiplication displayed nicely, we can adapt
+the code in SubAlgStructure to this setting, or we can feed bas to the function and get
+closure 1 instead of 2, a_3 for  a_rho. I need results now, not beauty. Future project.*/
+	V:=VectorSpace(Rationals(),3);
+	Expected:=[V![1,0,0],V![1/8,1/8,-1/8],V![1/8,-1/8,1/8],V![0,1,0],V![-1/8,1/8,1/8],V![0,0,1]];
+	tens,struct:=SubAlgStructure(bas,"a");
+	if tens eq Expected then
+	   shape*:="2A";
+	end if;
+	elif ord eq 2 and dim eq 2 then /*2B case.*/
+	     V:=VectorSpace(Rationals(),2);
+	     Expected:=[V![1,0],V![0,0],V![0,1]];
+	     bas:=bas_dihed;
+	     tens,struct:=SubAlgStructure(bas,"a");
+		if tens eq Expected then
+		   shape*:="2B";
+		end if;
+	elif ord eq 3 then /*3A and 3C here.*/
+	     for i:=1 to 2 do
+	     	 for j:=1 to ord-1 do
+		 aa:=W!Eltseq(bas_dihed[i])*rho^j;
+			if not  A!aa in bas_dihed and not A!aa in ax then
+			   Append(~ax,A!aa);
+			   Append(~inds, <i,j>);
+			end if;
+		end for;
+	   end for;
+	   if inds eq [<1,1>] or inds eq [<2,1>] then
+	      bas:=[bas_dihed[2],bas_dihed[1],ax[1]];
+	   end if;
+	   strings:=["a_{-1}","a_0","a_1"]; /*don't forget to add u_rho in the 4-dim case.*/
+	   
+	   if dim eq 4 then /*3A subcase.*/
+	      u_rho:=2^7/(3^3*5)*(bas[2]+bas[3]+(1/2)*bas[1]-2^4*(bas[2]*bas[3]));
+	      Append(~strings,"u_{rho}");
+	      bas cat:=[u_rho];
+	      Expected:=[V![1/2^5,1/2^4,1/2^4,(-3^3*5)/2^11],V![-1/3^2,2/3^2,-1/3^2,5/2^5],V![0,0,0,1]];
+	      tens,struct:=SubAlgStructure(bas,"a");
+	      if tens[[IntegerRing()!((x[1]-1)/2*(2*dim+2-x[1]))+x[2]-x[1]+1:x in [<2,3>,<2,4>,<4,4>]]] eq Expected then
+	      	shape*:="3A";
+	      end if;
+	   elif dim eq 3 then
+	   	tens,struct:=SubAlgStructure(bas,"a");
+		Expected:=[(1/2^6)*V![-1,1,1]];
+		if tens[[5]] eq Expected then
+		   shape*:="3C";
+		end if;
+	   end if;
+	 elif  ord eq 4 then 
+	   for i:=1 to 2 do
+	     	 for j:=1 to ord-1 do
+			 aa:=W!Eltseq(bas_dihed[i])*rho^j;
+			if not  A!aa in bas_dihed and not A!aa in ax then
+				 Append(~ax,A!aa);
+				 Append(~inds, <i,j>);
+			end if;
+		end for;
+	   end for;
+		 bas:=[ax[2],bas_dihed[1],bas_dihed[2],ax[1]];
+         	if FrobFormAtElements(bas[2],bas[3],U) eq (1/(2^5)) then 
+		 v_rho:=bas[2]+bas[3]+1/3*(bas[1]+bas[4])-(2^6)/3*(bas[2]*bas[3]);
+		Append(~bas,v_rho);
+		strings:=["a_{-1}","a_0","a_1","a_2","v_{\rho}"];
+		Expected:=[(1/2^6)*V![1,3,3,1,-3],(V!0),(1/2^4)*(V![-2,5,-2,-1,3]),V![0,0,0,0,1]];
+		tens,struct:=SubAlgStructure(bas,"a");
+		if tens[[7,8,9,15]] eq Expected then 
+			shape*:="4A";
+		end if;
+	elif FrobFormAtElements(bas[2],bas[3],U) eq (1/(2^6)) then 
+		spec_ind:=[x:x in inds|x[2] eq 2];
+		bas:=[ax[2],bas_dihed[1],bas_dihed[2],ax[1],2^6*(bas[2]*bas[3])+bas[1]-bas[2]-bas[3]+bas[4]];
+		strings:=["a_{-1}","a_0","a_1","a_2","a_{\rho^2 }"];
+		Expected:=[(1/2^6)*V![-1,1,1,-1,1],(1/8)*(V![0,1,0,1,-1])];
+		tens,struct:=SubAlgStructure(bas,"a");
+		if tens[[7,8]] eq Expected then 
+			shape*:="4B";
+		end if;
+
+	end if;
+	elif ord eq 5 then
+
+		/*for i:=1 to 2 do 
+			for j:=1 to ord-1 do 
+				aa:=W!Eltseq(bas_dihed[i])*rho^j;
+				if not A!aa in bas_dihed and not A!aa in ax then 
+					Append(~ax,A!aa);
+					Append(~inds,<i,j>);
+				end if;
+			end for;
+		end for;
+		strings:=["a_{-2}","a_{-1}","a_0","a_1","a_2","w_{\rho}"];
+		bas:=[ax[Index(inds,<1,4>)],ax[Index(inds,<1,2>)],bas_dihed[1],bas_dihed[2],ax[Index(inds,<1,1>)]];
+		w_rho:=bas_dihed[1]*bas_dihed[2]-(1/(2^7))*(3*bas_dihed[1]+3*bas_dihed[2]-bas[5]-bas[2]-bas[1]);
+		Append(~bas,w_rho);
+		tens,struct:=SubAlgStructure(bas,"a");
+		Expected:=[(1/2^7)*V![-1,-1,3,3,-1,2^7],(1/2^7)*V![-1,-1,3,-1,3,-2^7],(7/2^(12))*V![-1,1,0,1,-1,2^7],(((5^2)*7)/2^(19))*V![1,1,1,1,1,0]];
+		if tens[[IntegerRing()!((x[1]-1)/2*(2*dim+2-x[1]))+x[2]-x[1]+1:x in [<3,4>,<3,5>,<3,6>,<6,6>]]] eq Expected then
+			shape*:="5A";
+		end if;*/
+		shape*:="5A";/*we really don't need all the other checks  since order 5 is unique. I had it to just xheck implementaion which if fine. Same
+		for 6A*/
+	elif ord eq 6 then 
+		/*strings:=["a_{-2}","a_{-1}","a_0","a_1","a_2","a_3","a_{\rho^3}","u_{\rho^2}"];
+		for i:=1 to 2 do 
+			for j:=1 to ord-1 do 
+				aa:=W!Eltseq(bas_dihed[i])*rho^j;
+				if not A!aa in bas_dihed and not A!aa in ax then 
+					Append(~ax,A!aa);
+					Append(~inds,<i,j>);
+				end if;
+			end for;
+		end for;
+		bas:=[ax[2],ax[4],bas_dihed[1],bas_dihed[2],ax[1],ax[3]];
+		a_rho3:=bas[3]+bas[6]-8*(bas[3]*bas[6]);
+		u_rho2:=(2^6/(5*3^3))*(2*bas[3]+2*bas[5]+bas[1])-((2^11)/((3^3)*5))*(bas[3]*bas[5]); 	
+		Append(~bas,a_rho3);
+		Append(~bas,u_rho2);
+		Expected:=[(1/2^6)*V![-1,-1,1,1,-1,-1,1,0]+((3^2)*5/(2^11))*V![0,0,0,0,0,0,0,1],(1/2^5)*V![1,0,2,0,2,0,0,0]-(5*(3^3)/(2^11))*V![0,0,0,0,0,0,0,1],(1/2^3)*V![0,0,1,0,0,1,-1,0],(1/3^2)*V![-1,0,2,0,-1,0,0,0]+(5/2^5)*V![0,0,0,0,0,0,0,1],(V!0)];
+		tens,struct:=SubAlgStructure(bas,"a");
+		if tens[[IntegerRing()!((x[1]-1)/2*(2*dim+2-x[1]))+x[2]-x[1]+1:x in [<3,4>,<3,5>,<3,6>,<3,8>,<7,8>]]] eq Expected then
+			shape*:="6A";
+		end if;*/
+		shape*:="6A"; 	
+end if;
+return shape; 
+end function;
+ 

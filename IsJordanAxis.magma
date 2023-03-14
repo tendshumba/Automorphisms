@@ -1,0 +1,8 @@
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axis a of an axial algebra A of Monster type, determine if it is of Jordan type 1/4.            +
++                                                                                                          +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+IsJordanAxis:=function(a)
+	 return HasMonsterFusion(a) and {@x[1]:x in Eigenvalues(AdMat(a)) @} eq {@0,1,1/4 @};
+end function;

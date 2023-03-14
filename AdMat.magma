@@ -1,0 +1,10 @@
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++                                                                                                             +
++ Given an element a of an axial Algebra A, find the matrix of ad_a. The element a must really be axial.      +
++													      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++===+++*/
+
+AdMat:=function(a)
+A:=Parent(a); F:=BaseField(A);
+return Matrix(F,[Eltseq(a*A.i):i in [1..Dimension(A)]]);
+end function;

@@ -1,0 +1,9 @@
+
+
+MiyamotoGroupMat:=function(lst)
+	/*lst is a list of axes. This will require TauMapsMonster.m to be loaded for the Monster Fusion law.*/
+        taus:=[TauMapMonster(x):x in lst];
+	return MatrixGroup<#Eltseq(lst[1]),Rationals()|taus>;
+end function;
+
+
