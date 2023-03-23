@@ -12,10 +12,11 @@ Functions to retrieve the algebra and properties from a ParAxlAlg
 Eventually, this can be removed and replaced with a DecAlg
 
 */
-intrinsic Algebra(A::ParAxlAlg) -> Alg
+intrinsic Algebra(A::ParAxlAlg) -> AlgGen
   {
   Returns the algebra of a ParAxlAlg.
   }
+  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra has not completed.";
   
 end intrinsic;
 
@@ -34,9 +35,13 @@ end intrinsic;
 
 
 */
+IdentityLength := AssociativeArray();
 types := ["2A","2B","3A","3C","4A","4B","5A","6A"];
 identities_lengths := [(2^2*3)/5,2,(2^2*29)/(5*7),(2^5/11),4, 19/5,(2^5)/7,(3*17)/(2*5)];
 
+for i in [1..#types] do
+  IdentityLength[types[i]] := indentities_lengths[i];
+end for;
 
 
 // FindAutNuanced
@@ -46,6 +51,60 @@ intrinsic FindNewAxes(A::Alg, axes::SetIndx, decomp::SetIndx, form::AlgMatElt) -
   
   We perform the nuanced algorithm to find all axes.  
   }
+  require Parent(axes) eq A: "The axes are not in the algebra";
+  F := BaseField(A);
+  
+  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
+  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
+  require #axes eq #decomp: "There are not the same number of decompositions as axis representatives.";
+  // Can change this later
+  // What about other characteristics
+  require Type(decomp[1]) eq Assoc and forall{ d : d in decomp | Keys(d) subset {1,0,1/4,1/32}}: "The decompositions are not in the correct form.";
+  
+  found := [];
+  for i in [1..#axes] do
+    a := axes[i];
+    dec := decomp[i];
+    
+    /*
+    For one of our known axes a, we want to find a new axis b
+    So B = < a,b > is a 2-generated axial algebra.  These all have identity.
+    We search for z = 1-a is an idempotent in the 0-eigenspace for a.
+    
+    We use this to identify 1 and then the subalgebra.
+    */
+    // Change when decomposition algebra
+    A0 := decomp[0];
+    
+    for k in Keys(IdentityLength) do
+      // Get the length of z
+      len := IdentityLength[k] - 1;
+      
+      // if the type is 4A, then there are infinitely many such idempotents
+      // Hence we need to add some extra relations
+      if k = "4A" then
+        A32 := decomp[1/32];
+        R := PolynomialRing(F, Dimension(A0));
+				FF := FieldOfFractions(R);
+				AFF := ChangeRing(A, FF);
+				z := &+[R.i*AFF!A0.i : i in [1..Dimension(A0)]];
+				// Since z is in A0 and the fusion law is Seress, z A32 subset A32
+				// So we can restrict the action of the adjoint of z to A32
+				bas := Basis(A32)
+				A32_vectorspace := VectorSpaceWithBasis(bas);
+				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
+				
+				extra := [ Determinant(adz - (31/32)*IdentityMatrix(F, Dimension(A32))) ];
+			else
+			  extra = [];
+			end if;
+			
+  		idemps := FindAllIdempotents(A, A0: length:=len, form:=form, extra_rels:=extra);
+  		
+      // Need to complete
+  
+  
+  
   
 end intrinsic;
 
