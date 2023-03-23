@@ -83,12 +83,30 @@ intrinsic AnnihilatorOfSpace(A::Alg, U::ModTupFld) -> ModTupFld
 end intrinsic;
 
 
-// DecomposeToJointEigenspaces
+// DecomposeToJointEigenspaces 
 intrinsic JointEigenspaceDecomposition(L::SetIndx) -> Assoc
   {
   Given an indexed set of axes L = \{ a_1, ..., a_n\}, decompose the algebra into joint eigenspaces for these axes.  Returns an associative array where the element A_lm_1(a_1) \cap ... \cap A_lm_n(a_n) has keys give by the set of eigenvalues \{ lm_1, ..., lm_n \}.
   }
   
+
+	decomps:=AssociativeArray();
+	A:=Parent(lst[1]); /* why this must be really axial*/ 
+	eigs:=[1,0,1/4,1/32];
+	n:=#lst;
+	dims:=[];
+	ads:=[AdMat(lst[i]):i in [1..n]];
+	Lst:=[[Eigenspace(ads[i],1):i in [1..n]],[Eigenspace(ads[i],0):i in [1..n]],[Eigenspace(ads[i],1/4):i in [1..n]],[Eigenspace(ads[i],1/32):i in [1..n]]];
+	cart:=CartesianPower([1..4],n);
+	for x in cart do 
+		joint_space:=&meet[Lst[x[i]][i]:i in [1..n]];
+		dim:=Dimension(joint_space);
+		if not dim eq 0 then
+			Append(~dims,dim);
+			decomps[[eigs[x[i]]:i  in [1..n]]]:=joint_space;
+		end if; 
+	end for; 
+	return decomps;
 end intrinsic;
 
 /*
@@ -120,4 +138,3 @@ intrinsic HasInducedMap(M::ModTupFld, phi::Map) -> BoolElt, .
   }
   
 end intrinsic;
-
