@@ -1,0 +1,12 @@
+177,0
+S,JointEigenspaceDecomposition,"Given an indexed set of axes L = { a_1, ..., a_n}, decompose the algebra into joint eigenspaces for these axes. Returns an associative array where the element A_lm_1(a_1) cap ... cap A_lm_n(a_n) has keys give by the set of eigenvalues { lm_1, ..., lm_n }",0,1,0,0,0,0,0,0,0,151,,457,-38,-38,-38,-38,-38
+S,AdMat,"Given an axial algebra element a, find its ad_a matrix",0,1,0,0,0,0,0,0,0,ParAxlAlgElt,,177,-38,-38,-38,-38,-38
+S,HasIdentityAlg,"Given an axial algebra A, determine if it has identity. Returns true if and only if it has one. 	If true, the identity is returned as a second element",0,1,0,0,0,0,0,0,0,ParAxlAlg,,36,ParAxlAlgElt,-38,-38,-38,-38
+S,FindAllIdempotents,"Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U. Optional arguments: length - requires the length of the idempotents to be as given form - the Frobenius form one- the identity of A. extra_rels - require the idempotent to satisfy extra relation(s). These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U",0,2,0,0,0,0,0,0,0,159,,0,0,ParAxlAlg,,151,-38,-38,-38,-38,-38
+S,FrobFormAtElements,"Given an axial algebra A with a form U, compute the number (u,v) for given elements u,v in A",0,3,0,0,0,0,0,0,0,177,,0,0,ParAxlAlgElt,,0,0,ParAxlAlgElt,,267,-38,-38,-38,-38,-38
+S,LengthOfElement,"Given an element u of an axial algebra A which admits a Frobenius form ""form"", find the length of u wrt to the form, i.e., (u,u)",0,2,0,0,0,0,0,0,0,177,,0,0,ParAxlAlgElt,,267,-38,-38,-38,-38,-38
+S,Pow,"Given an axial algebra element u and a non-negative integer n, find u^n=u*u*...*u n times. If the parent algebra of u has an identity, then u^0 is the identity",0,2,0,0,0,0,0,0,0,148,,0,0,ParAxlAlgElt,,ParAxlAlgElt,-38,-38,-38,-38,-38
+S,AdPowerAtElement,"Function to evaluate ad_a^n(v), i.e., the nth power of ad_a evaluated at v",0,3,0,0,0,0,0,0,0,ParAxlAlgElt,,0,0,148,,0,0,ParAxlAlgElt,,ParAxlAlgElt,-38,-38,-38,-38,-38
+S,PolynomialAtAdAtElement,Function to evaluate a polynomial f at ad_a and then applied to an alegbra element v,0,3,0,0,0,0,0,0,0,ParAxlAlgElt,,0,0,ParAxlAlgElt,,0,0,63,,ParAxlAlgElt,-38,-38,-38,-38,-38
+S,HasMonsterFusion,"Check if the axial algebra element u satisfies the Monster M(1/4,1/32) fusion law",0,1,0,0,0,0,0,0,0,ParAxlAlgElt,,36,-38,-38,-38,-38,-38
+S,IsJordanAxis,Check if a given idempotent is an axis of Jordan type 1/4,0,1,0,0,0,0,0,0,0,ParAxlAlgElt,,36,-38,-38,-38,-38,-38

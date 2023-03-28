@@ -61,23 +61,17 @@ intrinsic HasIdentityAlg(A::ParAxlAlg)->BoolElt, ParAxlAlgElt
 	//basmat:=Matrix(Rationals(),[Eltseq(A.i):i in [1..d]]);
 	for i:=1 to d do 
 		for j:=i to d do 
-			//Append(~tens, Solution(basmat,V!Eltseq(A.i*A.j)));
 			Append(~tens,V!Eltseq(A.i*A.j));
 		end for;
 	end for;
 	k:=1;
-	
 	rows:=[];
 	vecs:=[];
 	sols:=[];
-	
 	for k:=1 to d do
-
 		for l:=1 to d do
 		       	row:=[];
-
 			for i:=1 to d do
-			
 				ii:=Minimum({i,k});jj:=Maximum({i,k});
 				Append(~row,tens[IntegerRing()!((ii-1)/2*(2*d+2-ii))+jj-ii+1][l]); 
 			end for;
@@ -98,7 +92,6 @@ intrinsic HasIdentityAlg(A::ParAxlAlg)->BoolElt, ParAxlAlgElt
 		else
 			return bool, A!ein; 
 		end if;
-
 end intrinsic;
 
 
@@ -194,7 +187,6 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			print "ideal not zero-dimensional";
 			return "fail";
 		end if;
-
 end intrinsic;
 
 				
@@ -213,4 +205,160 @@ Given an axial  algebra A with a form U, compute the number (u,v) for given elem
 	UQ:=ChangeRing(U,F);
 	return (Matrix(F,[Eltseq(u)])*UQ*Transpose(Matrix(F,[Eltseq(v)])))[1][1];
 end intrinsic;
+
+intrinsic LengthOfElement(u:: ParAxlAlgElt,form::AlgMatElt)->FldRatElt
+{
+Given an element u of an axial algebra A which admits a Frobenius form "form", find the length of u wrt to the form, i.e., (u,u).
+}
+
+require Type(u) eq ParAxlAlgElt: "The element u is not an axial algebra element.";
+require Nrows(form) eq Ncols(form): "The Frobenius form must be a square matrix.";
+return FrobFormAtElements(u,u,form);
+end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Function to check if an idempotent satisfies the Monster M(1/4,1/32) fusion law. We start with some auxiliary routines.                 +
++           	                                                                                                                          +
++ We implement ideas from Hall, Rehren and Shpectorov's 'Universal axial algebras and a theorem of Sakuma.                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+ 
+
+
+intrinsic Pow(u::ParAxlAlgElt, n::RngIntElt)-> ParAxlAlgElt
+{
+Given an axial algebra element u and a non-negative integer n, find u^n=u*u*...*u n times. If the parent algebra of u has an identity, then
+u^0 is the identity.
+}
+ 
+require n ge 0: " n must be a nonnegative integer.";
+	if n eq 0 then 
+ 		bool,id:=HasIdentityAlg(Parent(u));
+		if bool eq true then  
+			pow:=id;
+			pow:=id;
+			return pow;
+		else
+			print("Error, the given power cannot be computed");
+			return "fail";
+		end if;
+	end if;
+	/* we now deal with n gt or equal to 1.*/ 
+	if n eq 1 then
+		pow:=u;
+ 	else
+		count:=n;
+		pow:=u;
+		while count gt 1 do
+			pow:=pow*u;
+			 count:=count-1;/*this can actually deal with n=1.*/
+		end while;
+	end if;
+	return pow;
+end intrinsic;
+
+/* Function to evaluate ad_a^n(v), i.e., the nth power of ad_a evaluated at v.*/
+intrinsic AdPowerAtElement(a::ParAxlAlgElt,n::RngIntElt,v::ParAxlAlgElt) ->ParAxlAlgElt
+{
+ Function to evaluate ad_a^n(v), i.e., the nth power of ad_a evaluated at v.
+} 
+	require n ge 0: "The integer n must be  nonnegative."; 
+	if n eq 0 then 
+		return v;
+	else
+		/*count:=n;prod:=v;
+       		while count gt 0 do
+	 		prod:=prod*a;count:=count-1;
+		end while;
+	      return prod;*/ /*basically that is what Pow is for.*/
+		return (Pow(a,n))*v; 
+	end if;
+end intrinsic;
+
+/*Function to evaluate a polynomial f at ad_a and then applied to an alegbra element v.*/
+
+intrinsic PolynomialAtAdAtElement(f::RngMPolElt, a::ParAxlAlgElt, v::ParAxlAlgElt)->ParAxlAlgElt
+{
+
+Function to evaluate a polynomial f at ad_a and then applied to an alegbra element v.
+} 
+	coefs:=Coefficients(f);
+	return &+[coefs[i]*AdPowerAtElement(a,i-1,v):i in [1..#coefs]];
+end intrinsic;
+
+
+
+/*check if the eigenvalues are in eigens, if so, check if dimensions add up.*/
+intrinsic HasMonsterFusion(u::ParAxlAlgElt)-> BoolElt
+{
+Check if the axial algebra element u satisfies the Monster M(1/4,1/32) fusion law.
+
+} 
+ bas:=Basis(Parent(u));
+ eigens:=[1,0,1/4,1/32];
+ P<s>:=PolynomialRing(Rationals(),1);
+ /*ad:=Matrix(BaseField(Parent(u)), [Eltseq(u*bas[i]): i in [1..Dimension(Parent(u))]]);*/
+ ad:=AdMat(u);/* This little utility does the above.*/ 
+  eigs:=IndexedSet(Eigenvalues(ad));
+ if exists(ev){eigs[i][1]:i in [1..#eigs]|not (eigs[i][1]  in eigens)} then
+  printf("Eigenvalue %o not in [1,0,1/4,1/32]\n"),ev;
+  return false; 
+ elif &+[eigs[i][2]:i in [1..#eigs]] ne #bas then 
+ print("Dimensions do not add up\n");
+  return false;
+ else 
+  E0:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,0))];/*one hopes all eigenvalues are involved,
+ if not, then a check has to be made.*/
+  E1:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1))];
+  E4:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1/4))];
+  E32:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1/32))];
+  /*1* everything else, not necessary, but we do it .*/
+  bools:=[];
+  bool1:=[
+  forall{PolynomialAtAdAtElement(s-1,u,E1[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E1],j in [1..#E1]},
+  forall{u*(E0[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E0],j in [1..#E1]},
+  forall{PolynomialAtAdAtElement(s-1/4,u,E4[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E1]},
+  forall{PolynomialAtAdAtElement(s-1/32,u,E32[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E1]}];
+  Append(~bools,forall{bool:bool in bool1|bool eq true});
+
+  /*we now check multiplication by 0 here.*/
+  bool2:=[forall{PolynomialAtAdAtElement(s,u,(E0[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E0],j in [1..#E0]},
+  forall{PolynomialAtAdAtElement(s-1/4,u,(E4[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E0]},   
+  forall{PolynomialAtAdAtElement(s-1/32,u,(E32[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E0]}];
+  Append(~bools,forall{bool:bool in bool2|bool eq true});
+
+ /*we check multiplication by 1/4 now.*/
+  bool3:=[
+  forall{PolynomialAtAdAtElement((s-1)*s,u,E4[i]*E4[j]) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E4]},
+  forall{PolynomialAtAdAtElement(s-(1/32),u,E32[i]*E4[j]) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E4]}];
+  Append(~bools,forall{bool:bool in bool3|bool eq true});
+
+ /*finally multipliction by 1/32.*/
+ bool4:=[
+ forall{PolynomialAtAdAtElement((s-1)*(s-1/4)*s,u,(E32[i]*E32[j])) eq
+ Zero(Parent(u)) :i in [1..#E32],j in [1..#E32]}];
+ Append(~bools,forall{bool:bool in bool4|bool eq true});
+ if false in bools then 
+  return false;
+ else 
+  return true;
+ end if;
+end if;
+end intrinsic;
+ 
+/*Routine for checking if a given idempotent is a Jordan axis.*/
+
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axis a of an axial algebra A of Monster type, determine if it is of Jordan type 1/4.            +
++                                                                                                          +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic IsJordanAxis(a::ParAxlAlgElt)->BoolElt
+{
+Check if a given idempotent is an axis of Jordan type 1/4.
+}
+	require Pow(a,2) eq a: "Element is not idempotent"; 
+	return HasMonsterFusion(a) and {@x[1]:x in Eigenvalues(AdMat(a)) @} eq {@0,1,1/4 @};
+end intrinsic;
+
 
