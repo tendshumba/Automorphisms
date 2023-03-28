@@ -40,7 +40,7 @@ types := ["2A","2B","3A","3C","4A","4B","5A","6A"];
 identities_lengths := [(2^2*3)/5,2,(2^2*29)/(5*7),(2^5/11),4, 19/5,(2^5)/7,(3*17)/(2*5)];
 
 for i in [1..#types] do
-  IdentityLength[types[i]] := indentities_lengths[i];
+  IdentityLength[types[i]] := identities_lengths[i];
 end for;
 
 
