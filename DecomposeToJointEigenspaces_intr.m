@@ -362,3 +362,179 @@ Check if a given idempotent is an axis of Jordan type 1/4.
 end intrinsic;
 
 
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Must load MonsterFusionProjection.m . Require that a be an axial vector. (length n, dimension n).                          +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic TauMapMonster(a::ParAxlAlgElt)-> AlgMatElt
+{
+Find the Tau map of an axis.
+} 
+	require Pow(a,2) eq a: "The element a is not an idempotent";	
+	require HasMonsterFusion(a): "The element does not satisfy the Monster fusion law."; 
+	A:=Parent(a);
+	Q:=Rationals();
+	W:=VectorSpace(Rationals(),Dimension(A));
+	P1:=ProjMat(a,Q!1);
+	P0:=ProjMat(a,Q!0);
+	P4:=ProjMat(a,1/4);
+	P32:=ProjMat(a,1/32);
+	P:=P1+P0+P4;
+	return Matrix(Rationals(),[Eltseq((W!Eltseq(A.i))*P-(W!Eltseq(A.i))*P32): i in [1..Dimension(A)]]);
+end intrinsic;
+
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Let A be an n-dim algebra and suppose that a is an axis in A. Asumme Monster fusion. Find the          +
++  projections to the 1,0,1/4 and 1/32 spaces. To avoid too many arguments, make sure that a is in cat   +
++  axial. Take as input the axes and the eigenvalue.                                                     +
++                                                                                                        +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ProjMat(a::ParAxlAlgElt, ev::FldRatElt)->AlgMatElt
+{
+Given an axis a and an eigenvalue ev of ad_a, find the projection matrix to A_\{ev\}(a).
+}
+	require Pow(a,2) eq a: "The element a is not idempotent";
+	require ev in [Rationals()!1,Rationals()!0,1/4,1/32]: "The given eigenvalue is not in the Monster Fusion eigenvalues."; 
+	A:=Parent(a);
+	d:=Dimension(A);
+	evals:=[Rationals()!1,Rationals()!0,1/4,1/32]; /*should have defined this before tge erequire.*/
+	I:=IdentityMatrix(Rationals(),d);
+	ad:=Matrix(Rationals(),[Eltseq(a*A.i): i in [1..d]]);
+	return &*[(ad-x*I)/(ev-x):x in evals|x ne ev];
+end intrinsic;
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space.            +
++                                                                                                         +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=+++++*/
+
+intrinsic SigmaMapMonster(a::ParAxlAlgElt)->AlgMatElt
+{
+
+Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space. 
+}
+	require IsJordanAxis(a): "Axis is not of Jordan type 1/4."; 
+	Q:=Rationals(); 
+	A:=Parent(a);
+	W:=VectorSpace(Rationals(),Dimension(A));
+	P1:=ProjMat(a,Q!1);
+	P0:=ProjMat(a,Q!0);
+	P4:=ProjMat(a,1/4);
+	P:=P1+P0; 
+	return Matrix(Rationals(),[Eltseq((W!Eltseq(A.i))*P-(W!Eltseq(A.i))*P4): i in [1..Dimension(A)]]);
+end intrinsic;
+
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++This is the nuanced zero subalgebra version. Take A as input, and optional parameters one, for the algebra identity, + 
++ as well as Frobenius form "form". Including these if known speeds up thngs considerably.                            +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+
+IdentityLength := AssociativeArray();
+types := ["2A","2B","3A","3C","4A","4B","5A","6A"];
+identities_lengths := [(2^2*3)/5,2,(2^2*29)/(5*7),(2^5/11),4, 19/5,(2^5)/7,(3*17)/(2*5)];
+
+for i in [1..#types] do
+  IdentityLength[types[i]] := identities_lengths[i];
+end for;
+
+
+intrinsic FindAllAxesNuanced(A::ParAxlAlg: one:=A!0, form:=IdentityMatrix(BaseField(A), Dimension(A)))->SetIndx 
+{
+We perform the nuanced algorithm for finding all axes in an axial algebra of modest dimension. (Works for up to ~40 on an old laptop running linux.) 
+This version only takes an axial algebra as input and attempts to find all axes in A. 
+Additional (optional) inputs are :
+-one, the algebra identity if it exists. The program will attempt to find this if the default is left as is, increasing run time,
+-form, the Frobenius form of A. Same as above.
+ }
+
+	require Type(one) eq ParAxlAlgElt: "The given element is not an axial algebra element";
+	if one ne A!0 then 
+		require forall{i:i in [1..Dimension(A)]|one*A.i eq A.i}: "The given element is not identity";
+	end if; 
+	require Parent(one) eq A: "The given vector is not in the algebra";
+	F := BaseField(A);
+	axes:=Axes(A);
+	reps:=[axes[i][1]:i in [1..#axes]];
+	reps:=[A!x:x in reps]; 
+	axes:=&join[x:x in axes];
+	axes:=[A!x:x in axes];
+	found:=[];
+	count:=0;
+	for x in reps do
+		a:=x;
+		count+:=1;
+		W:=Eigenspace(AdMat(a),0);
+		for k in Keys(IdentityLength) do
+			l:=(IdentityLength[k])-1;
+			if k eq "4A" then
+				W32:=Eigenspace(AdMat(a),1/32);
+				RR:=PolynomialRing(BaseField(A),Dimension(W));
+				FF:=FieldOfFractions(RR); 
+				AFF:=ChangeRing(A,FF);
+				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
+				extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
+				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
+			elif k ne "4A" then 
+				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
+			end if; 
+			printf "orbit %o %o nice idempotents found\n", count,k;
+			if not #idemps eq 0 then 
+				AA:=ChangeRing(A,BaseField(Parent(idemps[1])));
+				aa:=AA!Eltseq(a);
+				for u in idemps do
+					uu:=AA!Eltseq(u); 
+					Z:=Eigenspace(AdMat(aa+uu),1);
+					potential_axes:=FindAllIdempotents(AA,Z:length:=1,one:=AA!Eltseq(one),form:=form);
+					for y in potential_axes do
+						if HasMonsterFusion(y) and not A!Eltseq(y) in found then
+							Append(~found, A!Eltseq(y));
+						end if;
+					end for;
+				end for; 
+				printf "axes arising from orbit %o, B of type %o found\n",count,k;
+			end if; 
+		end for; 
+	 end for; 
+	if #found eq #axes then 
+		print "nothing new";
+	else
+		printf "%o new axes found \n", #found-#axes;
+	end if;
+	return IndexedSet(found);
+end intrinsic;
+
+ 
+/* Given an axial algebra A (partial or complete), return the list of orbits of axes that generate A. */
+intrinsic Axes(A::ParAxlAlg)-> SetIndx 
+{
+ Given an axial algebra A (partial or complete), return the list of orbits of axes that generate A. 
+}
+	orbs:=Orbits(Group(A),A`GSet);
+	phi:=A`GSet_to_axes;
+	axis_orbits:=[{@A!(i@phi):i in o@}:o in orbs];
+	return axis_orbits;
+end intrinsic;
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Suppose that V is a subalgebra of an axial algebra A of known multiplication. Determine the ad_a matrix of a in V.    +
++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic AdMatInSubAlg(A::ParAxlAlg, V::ModTupFld, a::ParAxlAlgElt)-> AlgMatElt 
+{
+Suppose that V is a subalgebra of an axial algebra A of known multiplication. Determine the ad_a matrix of a in V. 
+}
+
+	//require forall{i:i in [1..Dimension(V)]|V.i in A`W}: "V is not a subspace of A."; 
+	n:=Dimension(A);
+	d:=Dimension(V);
+	basV:=Basis(V);
+	basmat:=Matrix(BaseField(A),[Eltseq(basV[i]):i in [1..d]]);
+	sols:=[Eltseq(Solution(basmat,Vector(BaseField(A),Eltseq(a*(A!V.i))))):i in [1..d]];
+	return Matrix(BaseField(A),sols);
+end intrinsic;
