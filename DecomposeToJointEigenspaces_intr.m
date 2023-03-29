@@ -538,3 +538,149 @@ Suppose that V is a subalgebra of an axial algebra A of known multiplication. De
 	sols:=[Eltseq(Solution(basmat,Vector(BaseField(A),Eltseq(a*(A!V.i))))):i in [1..d]];
 	return Matrix(BaseField(A),sols);
 end intrinsic;
+
+
+  
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an algebra A, and a subspace W with a prescribed basis as a list of vectors,  determine ann W.                                       +
++ The inputs are A, which must be axial, or a tensor which gives algebra multiplication. The basis, bas, of W, can be ordinary vectors.     +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+
+intrinsic AnnihilatorOfSpace(A::ParAxlAlg, U::ModTupFld) -> ModTupFld
+  {
+  Given an algebra A and a subspace U of A, return the subspace (not a subalgebra) of A which annihilates U.
+  }
+	bas:=Basis(U); 
+	tens:=[];
+	d:=Dimension(A);
+	V:=VectorSpace(Rationals(),d);
+	basmat:=Matrix(Rationals(),[Eltseq(A.i):i in [1..d]]);
+	for i:=1 to d do 
+		for j:=1 to d do 
+			if i le j then
+				Append(~tens, Solution(basmat,V!Eltseq(A.i*A.j)));
+			end if;
+		end for;
+	end for;
+	/*We could use coordinates with a prescribed basis but seems slower.*/
+	/*here we can as well just input the tensor.*/
+        m:=#bas;	
+        M:=ZeroMatrix(Rationals(),m*d,d); 
+	for k:=1 to m do
+		for l:=1 to d do
+		       	row:=[];
+			for i:=1 to d do
+				for j:=1 to d do 	
+					ii:=Minimum({i,j});jj:=Maximum({i,j});
+					M[d*(k-1)+l][i]+:=bas[k][j]*tens[IntegerRing()!((ii-1)/2*(2*d+2-ii))+jj-ii+1][l];
+				end for; 
+			end for;
+		end for;
+	end for;
+	big_vec:=VectorSpace(Rationals(),d*m)!0;	
+	_,sol:=Solution(Transpose(M),big_vec);
+	return sol; 
+end intrinsic; 
+
+
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axis a in an axial algebra A, find axes b such that t_a=t_b if such exist.                                    + 
++                                                                                                                        +
++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
+intrinsic FindMultiples(a::ParAxlAlgElt: one:=Parent(a)!0, eigenspace:=sub<Parent(a)`W|Parent(a)`W!0>, form := ZeroMatrix(BaseField(Parent(a)),Dimension(Parent(a)),Dimension(Parent(a)))) -> SetIndx
+  {
+  Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a. 
+  Does the same for a sigma automorphism if Jordan 1/4. We have optional arguments:
+   1. one, the algebra identity/unit.
+   2. 1/32-eigenspace (repsectively 1/4-eigenspace if Jordan),
+   3. form, the Frobenius form of the parent algebra.
+  }
+ 	A:=Parent(a);	 
+	require Pow(a,2) eq a and HasMonsterFusion(a): "Error, input not an axis";
+	/*when the space is given first.*/
+	if not Dimension(eigenspace) eq 0 then
+		require Degree(eigenspace) eq Dimension(A): "The degree of the space is different from that of the parent"; 
+		space:=eigenspace;
+	end if;
+	if Dimension(eigenspace) eq 0 then 
+		if IsJordanAxis(a) then 
+			space:=Eigenspace(AdMat(a),1/4);
+		else
+			space:=Eigenspace(AdMat(a),1/32);
+		end if;
+	end if;
+	/* now deal with the case of identity being supplied.*/
+	if one ne A!0 then
+		require Type(one) eq ParAxlAlgElt: "The given element is not an axial algebra element";
+		require forall{i:i in [1..Dimension(A)]|one*A.i eq A.i}: "The given element is not the identity.";
+	end if;
+	/*We proved that all algebras with the Monster M(1/4,1/32) fusion law are unital, but for others one may not exist.*/
+	/*Now when the identity is not supplied we find it.*/
+	if one eq A!0 then  
+		_,one:=HasIdentityAlg(A);
+	end if;
+	/*now check if the form has been supplied.*/
+	if form eq ZeroMatrix(BaseField(A), Dimension(A), Dimension(A)) then
+		_,U:=HasFrobeniusForm(A);
+	else /*form supplied, need to check if it's a square matrix, no other checks beyond that, we assume the user is sensible.*/
+		require Type(form) eq AlgMatElt: "Form must be a matrix";
+		require Nrows(form) eq Ncols(form): "Form must be a square matrix";
+		require BaseRing(form) eq BaseField(A): "The form must ve over the sane field as A.";
+		U:=form; 
+	end if;
+	ann:=AnnihilatorOfSpace(A,space);
+	/*we seek w in 1+ann such that a multiple b is of the form b=a+w.*/
+	Space:=sub<A`W|A`W!Eltseq(one)>+ann;
+	dim:=Dimension(Space);
+	R:=PolynomialRing(Rationals(),dim);
+	FR:=FieldOfFractions(R);
+	AFR:=ChangeField(A,FR);
+	UFR:=ChangeRing(U,FR);
+	w:=&+[(AFR!Space.i)*R.i:i in [1..dim]];
+	aa:=AFR!Eltseq(a); 
+	/* from b^2=b we have a+w=a^2+2aw+w^2=a+2aw+w^2 whence 0=w^2+2aw-w: where a is really aa in this comment.*/ 
+	res:=w*w+2*aa*w-w;
+	len_res:=(VecToMat(w)*UFR*Transpose(VecToMat(w))+2*VecToMat(aa)*UFR*Transpose(VecToMat(w)))[1][1]; 
+	/*we have 1=(aa+b,aa+b)=(aa,aa)+2(aa,w)+(w,w) hence 0=(w,w)+2(aa,w).*/;
+	I:=ideal<R|[R!x:x in Eltseq(res) cat [len_res]]>;
+	var:=Variety(I);
+	if not #var eq VarietySizeOverAlgebraicClosure(I) then 
+		print "a check is needed here";
+		return {@ @};
+	elif #var eq 1 then /*notice here that 0 always satisfies our condition.*/ 
+		print "nothing new";
+		return {@ @};
+	elif #var gt 1 then 
+			vars:=[];
+			for x in var do
+				if not forall{y:y in x|y eq 0} then  
+					twin:=&+[AFR!Space.i*x[i]:i in [1..dim]];
+					Append(~vars,a+A!Eltseq(twin));
+				end if;
+			end for;
+			return IndexedSet(vars);
+	end if;
+end intrinsic;
+
+
+/*Turn a vector to a row matrix.*/
+
+intrinsic VecToMat(v:: ModTupFldElt)-> AlgMatElt
+{
+Turn a vector to a row matrix.
+}
+	 return Matrix(BaseField(Parent(v)),[Eltseq(v)]);
+end intrinsic;
+		
+intrinsic VecToMat(v:: ParAxlAlgElt)-> AlgMatElt
+{
+Turn a vector to a row matrix.
+}
+	 return Matrix(BaseField(Parent(v)),[Eltseq(v)]);
+end intrinsic;
