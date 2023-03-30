@@ -806,3 +806,87 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 	end if;
 end intrinsic;
 
+
+/*The following is a naive approach without any length restriction.*/
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++This is the brute force approach to finding all the axes of Monster M(1/4,1/32).                 +
++                                                                                                 +
++												  +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic FindAxesNaive(A::ParAxlAlg)->SetIndx
+{
+	Given an axial algebra A of modest dimension, \(around 10\-dim and less\), find all axes in A by brute force. 
+}
+	idemps:=FindAllIdempotents(A,A`W);
+	try 
+		if idemps eq "fail" then	
+			return "fail";
+		end if;
+		idemps:=idemps;
+		print "idempotents found";
+	catch e
+		axes:=[];
+		for x in idemps do
+			if Dimension(Eigenspace(AdMat(x),1)) eq 1 then
+				if HasMonsterFusion(x) then
+					Append(~axes,A!Eltseq(x));
+				end if;
+			end if;
+		end for;
+			known_axes:=&join[x:x in Axes(A)];
+			new:=[x:x in axes| not x in known_axes];
+			if #new eq 0 then
+				print "nothing new";
+			else
+				print "new axes found";
+			end if;
+				return IndexedSet(axes);
+		return "fail";
+	end try;
+end intrinsic;
+
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++This is the brute force approach to finding all the axes of Monster M(1/4,1/32). We add the      +
++extra condition that the idempotents found be of length 1. We require the algebra identity as    +
++optional input.                                                                                  +												
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0)-> SetIndx
+{
+	We use the brute force approach withy the restriction that found idempotents must be of length 1. If the resultant ideal is not zero dimensional it will return fail.
+}
+	if id eq A!0 then
+       		_,id:=HasIdentityAlg(A);
+	else/* user supplied identity.*/
+		require Parent(id) eq A: "The elemnt is not in A";
+		require forall{i:i in [1..Dimension(A)]|id*A.i eq A.i}: "The given element is not the identity of A.";
+	end if;	
+	idemps:=FindAllIdempotents(A,A`W:length:=1,one:=id);
+	try 
+		if idemps eq "fail" then	
+		return "fail";
+		end if;
+			idemps:=idemps;
+			print "idempotents found";
+	catch e
+		axes:=[];
+		for x in idemps do
+			if Dimension(Eigenspace(AdMat(x),1)) eq 1 then
+				if HasMonsterFusion(x) then
+					Append(~axes,A!Eltseq(x));
+				end if;
+			end if;
+		end for;
+			known_axes:=&join[x:x in Axes(A)];
+			known_axes:=[A!x:x in known_axes];
+			new:=[x:x in axes| not x in known_axes];
+			if #new eq 0 then
+				print "nothing new";
+			else
+				printf "new %o axes found\n",#new;
+			end if;
+				return IndexedSet(axes);
+	
+		return "fail";
+	end try;
+end intrinsic;

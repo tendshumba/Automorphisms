@@ -21,3 +21,5 @@ S,FindMultiples,"Given an axis, find the set of all other axes which have the sa
 S,VecToMat,Turn a vector to a row matrix,0,1,0,0,0,0,0,0,0,160,,177,-38,-38,-38,-38,-38
 S,VecToMat,Turn a vector to a row matrix,0,1,0,0,0,0,0,0,0,ParAxlAlgElt,,177,-38,-38,-38,-38,-38
 S,ExtendMapToAlgebra,"Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 	extend the map as far as possible. If the map extends to the whole algebra, return true and a matrix that gives a multiplicative map A->A 	where A is the axial algebra in question. If not, return false and the maximum subalgebra (as a vector space) to which the map extends",0,2,0,0,0,0,0,0,0,82,,0,0,82,,36,177,-38,-38,-38,-38
+S,FindAxesNaive,"Given an axial algebra A of modest dimension, (around 10-dim and less), find all axes in A by brute force",0,1,0,0,0,0,0,0,0,ParAxlAlg,,151,-38,-38,-38,-38,-38
+S,FindAxesNaiveWithLengthRestriction,We use the brute force approach withy the restriction that found idempotents must be of length 1. If the resultant ideal is not zero dimensional it will return fail,0,1,0,0,0,0,0,0,0,ParAxlAlg,,151,-38,-38,-38,-38,-38
