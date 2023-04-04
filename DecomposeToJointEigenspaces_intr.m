@@ -1280,6 +1280,7 @@ intrinsic IsInducedFromAxisMat(A::ParAxlAlg, mat::AlgMatElt:one:=A!0,form:=Ident
 	require Nrows(mat) eq Ncols(mat) and Nrows(mat) eq n: "The matrix must be square";
 	require Type(form) eq AlgMatElt: "The form must be a matrix";
 	require Nrows(form) eq Ncols(form): "The form must be a square matrix";
+	require IsSymmetric(form):" The form must be symmetric";
 	require Type(one) eq ParAxlAlgElt: "Identity must be an axial algebra element";
 	require IsInvertible(mat): "An automorphism is invertible";
 	require forall{i:i in [1..n]|forall{j:j in [1..n]| IsCoercible(F,mat[i][j])}}:" A and mat must be over the same field";
@@ -1301,6 +1302,12 @@ intrinsic IsInducedFromAxisMat(A::ParAxlAlg, mat::AlgMatElt:one:=A!0,form:=Ident
 		end if;
 	else	
 		require forall{i:i in [1..n]|one*A.i eq A.i}: "The given vector is not the algebra element";
+	end if;
+	if form eq IdentityMatrix(F,n) then 
+		form_bool,form:=HasFrobeniusForm(A); 
+		if form_bool eq false then 
+			ax:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:one:=one);
+		end if;
 	end if;
 	ax:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:length:=1,one:=one, form :=form);
 	if #ax eq 0 then
