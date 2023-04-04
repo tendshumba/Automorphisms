@@ -1321,3 +1321,34 @@ intrinsic IsInducedFromAxisMat(A::ParAxlAlg, mat::AlgMatElt:one:=A!0,form:=Ident
 		end if;
 	end if;
 end intrinsic;
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given two vectors a and b, project a to b. We assume that the axial algebra containing a and b has a definite form U  +
++                                                                                                                       +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+intrinsic Proj_aTo_b(a::ParAxlAlgElt, b::ParAxlAlgElt, form::AlgMatElt)->ParAxlAlgElt
+{
+	Given two axial algebra elements a and b where the algebra containing them has a form U, project a to b.
+}  
+	return (FrobFormAtElements(a,b,form)/FrobFormAtElements(b,b,form))*b;
+end intrinsic;
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Function to othorgonalise a basis of a subspace of an axial algebra with a form                                                   =
++                                                                                                                                   +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic OrthogonaliseBasis(A::ParAxlAlg, basis:: SeqEnum, U::AlgMatElt)-> SeqEnum 
+{
+	Given an axial algebra A and a sequence basis which is a basis for A or a subspace, orthogonalise the sequence. 
+}
+
+	require IsIndependent({A`W!Eltseq(x):x in basis}): "A basis must be linearly independent"; 
+	m:=#basis;
+	orth_bas:=[basis[1]];
+	for i:=2 to m do
+		v:=basis[i];
+		w:=v-(&+[Proj_aTo_b(A!v,A!orth_bas[j],U):j in [1..i-1]]);
+		Append(~orth_bas,w);
+	end for;
+	return orth_bas;
+end intrinsic; 
