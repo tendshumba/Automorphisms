@@ -1048,3 +1048,218 @@ intrinsic ToBigVec(A::ParAxlAlg, V::ModTupFld,v::ModTupFldElt)->ParAxlAlgElt
 	return &+[v[i]*A!basV[i]:i in [1..m]];
 end intrinsic;
 
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axial algebra A, find the Jordan 1/4 axes in A.                                                                  +
++                                                                                                                           +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+
+intrinsic JordanAxes(A::ParAxlAlg :one:=A!0,form:=IdentityMatrix(BaseField(A), Dimension(A)))->SetIndx
+{
+	Givem an axial algebra, find all the Jordan Axes in A. Optional inputs are :
+	1. one- the algebra identity and 
+	2. form- the Frobenius form of the algebra if exists.
+}
+	if one eq A!0 then
+		_,one:=HasIdentityAlg(A); /* in our setting algebras are untital.*/
+	else 
+		require Type(one) eq ParAxlAlgElt: "The identity must be an axial algebra element"; 
+		require forall{i:i in [1..Dimension(A)]|one*A.i eq A.i}: "The given element is not the algebra identity";
+	end if;
+	if form eq IdentityMatrix(BaseField(A),Dimension(A)) then
+		bool,form:=HasFrobeniusForm(A);
+		if bool eq false then
+			idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):one:=one);
+		else/*user did not supply form and it has been calculated (exists).*/	
+			idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):length:=1,one:=one, form:=form);
+		end if;
+	else/*user supplied form.*/
+		require Type(form) eq AlgMatElt: "The form must be a matrix";
+		require Nrows(form) eq Ncols(form) and Nrows(form) eq Dimension(A): "The form must be a square matrix";
+		require IsSymmetric(form): "A Frobenius form is necessarily symmetric";	
+		idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):length:=1,one:=one, form:=form);
+	end if;
+	if #idemps eq 0 then 
+		return idemps;
+	else 
+		return{@x:x in idemps| HasMonsterFusion(x) @};
+	end if;
+end intrinsic;
+
+	
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++This function takes an alebra/vector space A and a subspace V and a vector v in A to produce a dimV-long +
++ relative to a basis of V. The opposite of ToBigVec.                                                     +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ToSmallVec(A::ParAxlAlg, V::ModTupFld, v::ParAxlAlgElt)-> ModTupFldElt 
+{ Given an axial algebra A, a subspace V and a vector v of a which is coercible to V, find a dim(V)-long vector which is an expression of v in terms of some basis of V. 
+}
+
+	F:=BaseField(A);
+	n:=Dimension(A);
+	 m:=Dimension(V);
+	AA:=VectorSpace(F,n);
+	require Degree(V) eq n: "V must be a subspace of A";
+	mat:=Matrix(F,[Eltseq(V.i):i in [1..m]]);
+	v,_:= Solution(mat,AA!Eltseq(v));
+	return v;
+end intrinsic;
+
+/*This version is for when A is a vector space.*/
+intrinsic ToSmallVec(A::ModTupFld, V::ModTupFld, v::ModTupFldElt)-> ModTupFldElt 
+{ Given a vector space A, a subspace V and a vector v in A\\cap V, find a dim(V)-long vector which is an expression of v in terms of some basis of V. 
+}
+
+	F:=BaseField(A);
+	n:=Dimension(A);
+	 m:=Dimension(V);
+	AA:=VectorSpace(F,n);
+	require Degree(V) eq n and V subset A: "V must be a subspace of A";
+	mat:=Matrix(F,[Eltseq(V.i):i in [1..m]]);
+	v,_:= Solution(mat,AA!Eltseq(v));
+	return v;
+end intrinsic;
+
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an element x of the permutation group form of the Miyamoto group of an axial algebra, determine if it is     +
++ induced by tau or sigma map of an axis. Return the axis if it exists.                                             +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic IsRealisableAsAxis(A::ParAxlAlg, elt::GrpPermElt :one:=A!0,form:=IdentityMatrix(BaseField(A),Dimension(A)))->BoolElt, SetIndx /*Input an axial algebra A and a group element elt from the Miyamoto group.*/ 
+/*We have an optional input for the identity if it exists, naturally inputting it will speed up things.*/
+{
+	Given an axial algebra A and an element elt from the Miyamoto group of A given as a permutation matrix, determine if elt can be realised as an axis.
+} 
+	require Type(one) eq ParAxlAlgElt: "The identity must be an axial algebra element.";
+	require Type(form) eq AlgMatElt: "The form must be a matrix "; 
+	require Nrows(form) eq Ncols(form) and Nrows(form) eq Dimension(A): "The form must be a square matrix";
+	require IsSymmetric(form): "A Frobenius form is necessarily symmetric";
+	n:=Dimension(A);
+	F:=BaseField(A); 
+	if form eq IdentityMatrix(F,n) then
+		bool1,form:=HasFrobeniusForm(A);
+		if bool1 eq true then
+			x:=elt;
+			aut:=ZeroMatrix(F,n,n);
+			for i:=1 to n do
+				v:=(A`Wmod)!((A`W).i);
+				aut[i]:=(A`W)!Eltseq(v*x);
+			end for;
+			eigs:={x[1]:x in Eigenvalues(aut)};
+			if not eigs eq  {-1,1} then 
+				return false;
+			elif eigs eq {-1,1} then  
+				ann:=AnnihilatorOfSpace(A,(Eigenspace(aut,-1))); 
+				if one eq A!0 then
+					bool,one:=HasIdentityAlg(A);
+					if bool eq false then
+					idemps:=FindAllIdempotents(A, ann:length:=1, form:=form); 
+						if #idemps eq 0 then
+							return false,_;
+                				elif #idemps ne 0 then 
+							return true,{@x:x in idemps|HasMonsterFusion(x) @};
+						end if;
+					elif bool eq true then 
+						one:=A!one;
+						idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:length:=1,form:=form,one:=one);
+						if #idemps eq 0 then
+							return false,_;
+                				elif #idemps ne 0 then 
+							return true,{@x:x in idemps|HasMonsterFusion(x)@};
+						end if;
+					end if;
+				elif one ne A!0 then
+					require forall{i:i in [1..n]|one*A.i eq A.i}: "The given element is not the algebra identity."; 
+					idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:length:=1,form:=form,one:=one);
+					if #idemps eq 0 then
+						return false,_;
+                			elif #idemps ne 0 then 
+						return true,{@ x :x in idemps|HasMonsterFusion(x) @};
+					end if;
+				end if;
+			end if; 
+		else /* form does not exist.*/
+			x:=elt;
+			aut:=ZeroMatrix(F,n,n);
+			for i:=1 to n do
+			v:=(A`Wmod)!((A`W).i);
+			aut[i]:=(A`W)!Eltseq(v*x);
+		end for;
+		eigs:={x[1]:x in Eigenvalues(aut)};
+		if not eigs eq  {-1,1} then 
+			return false;
+		elif eigs eq {-1,1} then  
+			ann:=AnnihilatorOfSpace(A,(Eigenspace(aut,-1))); 
+			if one eq A!0 then
+				bool,one:=HasIdentityAlg(A);
+				if bool eq false then
+				idemps:=FindAllIdempotents(A, ann:one:=one); 
+					if #idemps eq 0 then
+						return false,_;
+                			elif #idemps ne 0 then 
+						return true,{@x:x in idemps|HasMonsterFusion(x) @};
+					end if;
+				elif bool eq true then 
+					one:=A!one;
+					idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:one:=one);
+					if #idemps eq 0 then
+						return false,_;
+                			elif #idemps ne 0 then 
+						return true,{@x:x in idemps|HasMonsterFusion(x)@};
+					end if;
+				end if;
+			elif one ne A!0 then
+				require forall{i:i in [1..n]|one*A.i eq A.i}: "The given element is not the algebra identity."; 
+				idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:one:=one);
+				if #idemps eq 0 then
+					return false,_;
+                		elif #idemps ne 0 then 
+					return true,{@ x :x in idemps|HasMonsterFusion(x) @};
+				end if;
+			end if;
+		end if; 
+		end if;
+	else
+		  
+		x:=elt;
+		aut:=ZeroMatrix(F,n,n);
+		for i:=1 to n do
+			v:=(A`Wmod)!((A`W).i);
+			aut[i]:=(A`W)!Eltseq(v*x);
+		end for;
+		eigs:={x[1]:x in Eigenvalues(aut)};
+		if not eigs eq  {-1,1} then 
+			return false;
+		elif eigs eq {-1,1} then  
+			ann:=AnnihilatorOfSpace(A,(Eigenspace(aut,-1))); 
+			if one eq A!0 then
+				bool,one:=HasIdentityAlg(A);
+				if bool eq false then
+				idemps:=FindAllIdempotents(A, ann:length:=1, form:=form); 
+					if #idemps eq 0 then
+						return false,_;
+                			elif #idemps ne 0 then 
+						return true,{@x:x in idemps|HasMonsterFusion(x) @};
+					end if;
+				elif bool eq true then 
+					one:=A!one;
+					idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:length:=1,form:=form,one:=one);
+					if #idemps eq 0 then
+						return false,_;
+                			elif #idemps ne 0 then 
+						return true,{@x:x in idemps|HasMonsterFusion(x)@};
+					end if;
+				end if;
+			elif one ne A!0 then
+				require forall{i:i in [1..n]|one*A.i eq A.i}: "The given element is not the algebra identity."; 
+				idemps:=FindAllIdempotents(A,sub<A`W|A`W!Eltseq(one)>+ann:length:=1,form:=form,one:=one);
+				if #idemps eq 0 then
+					return false,_;
+                		elif #idemps ne 0 then 
+					return true,{@ x :x in idemps|HasMonsterFusion(x) @};
+				end if;
+			end if;
+		end if; 
+	end if;
+end intrinsic; 
+
