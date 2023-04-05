@@ -1351,4 +1351,29 @@ intrinsic OrthogonaliseBasis(A::ParAxlAlg, basis:: SeqEnum, U::AlgMatElt)-> SeqE
 		Append(~orth_bas,w);
 	end for;
 	return orth_bas;
-end intrinsic; 
+end intrinsic;
+
+ 
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an axial vector w and a subspae V of an axial algebra A containing w, project w to V.                                                +
++                                                                                                                                            +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ProjectVecToSubspace(w::ParAxlAlgElt, V::ModTupFld, form::AlgMatElt)-> ModTupFldElt
+{
+Given a subspace V of an axial algebra A, and a vector v in A , together with a Frobenius form, project v to V. 
+}
+	A:=Parent(w);  
+	require Dimension(A) eq Degree(V): "Incompatible spaces"; 
+	U:=form;
+	require Nrows(U) eq Ncols(U): "The form must be a square matrix";
+	require IsSymmetric(U): "The form is necessarily symmetric"; 
+	if A`W!Eltseq(w) in V then 
+		return A`W!Eltseq(w);
+	end if; 
+	bas:=Basis(V);
+	bas:=[A!x:x in bas];
+	orth:=OrthogonaliseBasis(A, bas,U); 
+	proj:=&+[Proj_aTo_b(w,orth[i],U):i in [1..#bas]];
+	return A`W!Eltseq(proj);
+ end intrinsic; 
+
