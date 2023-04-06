@@ -1360,7 +1360,7 @@ end intrinsic;
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 intrinsic ProjectVecToSubspace(w::ParAxlAlgElt, V::ModTupFld, form::AlgMatElt)-> ModTupFldElt
 {
-Given a subspace V of an axial algebra A, and a vector v in A , together with a Frobenius form, project v to V. 
+Given a subspace V of an axial algebra A, and a vector w in A , together with a Frobenius form, project w to V. 
 }
 	A:=Parent(w);  
 	require Dimension(A) eq Degree(V): "Incompatible spaces"; 
@@ -1385,13 +1385,13 @@ Given a subspace V of an axial algebra A, and a vector v in A , together with a 
 //field of A. We assume that it is indeed an automorphism and a check shall not be made.                          +
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-intrinsic ExtendAutToMod(A::ParAxlAlg, V::ModTupFld, M::ModTupFld, phi::AlgMatElt)-> ModTupFld
+intrinsic ExtendAutToMod(A::ParAxlAlg, V::ModTupFld, M::ModTupFld, phi::AlgMatElt)-> BoolElt, ModTupFld
 {
 	Given an axial algebra A, a subalgebra V, a module M for V, together with a map or automorphism phi of V, determine if the automorphism induces a map on M. If true, a vector space with degree dim(M)xdim(M) is returned where each basis vector is a concatenation of rows of a matrix representing the induced map.
 } 
 	n:=Dimension(A);
-	 k:=Dimension(V);
-	 m:=Dimension(M);
+	k:=Dimension(V);
+	m:=Dimension(M);
 	F:=BaseField(A);
 	V_onM:=[];
 	for i:=1 to k do
@@ -1432,7 +1432,135 @@ intrinsic ExtendAutToMod(A::ParAxlAlg, V::ModTupFld, M::ModTupFld, phi::AlgMatEl
 	if Dimension(space) eq 0 then
 		return false,_;
 	else
-		return true,space;
+		return true, space;
 	end if; 
 end intrinsic;	
 
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given a vector u, project it into a space V. This will assume that the algebra A containing u has a form  +
++ U.                                                                                                        +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ProjectVecToJointSpaces(u::ParAxlAlgElt, lst::SeqEnum, lst1::SeqEnum)-> SeqEnum, ParAxlAlgElt
+{
+Given an axial algebra element u, project u to joint eigenspace decompositions of the algebra A containing u with respect to a set lst of axes. The sequence lst1 contains the keys.
+}
+/*this blurb needs fine-tuning. Also think about the return value.*/ 
+	A:=Parent(u);
+        n:=Dimension(A);	
+	F:=BaseField(A);
+	eigs:=[1,0,1/4,1/32];
+	ads:=[];
+	for i:=1 to #lst do
+		Append(~ads,AdMat(lst[i]));
+	end for; 
+	projs:=[];
+	Id:=IdentityMatrix(F,n); 
+	for i:=1 to #lst do
+		ad:=ads[i];
+		pj:=[];
+		for j:=1 to 4 do
+			proj:=&*[(ad-eigs[k]*Id)/(eigs[j]-eigs[k]):k in [1..4]|k ne j];
+		 	Append(~pj,proj);
+		end for;
+		Append(~projs,pj);
+	end for; 
+	im:=A`W!Eltseq(u); 
+	for i:=1 to #lst1 do
+       		ind:=Index(eigs,lst1[i]); 
+		im:=im*(projs[i][ind]);
+	end for;	
+	return projs,A!im;
+end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++Given an axial algebra A over the rationals whose Miyamoto group is A_n, find an automorphism of order 2 coming from the action                            + 
++ of an odd involution. As input, take A and n in that order. We will include a switch which will by default turn off the check at end,                     + 
++ but will run it if the extra optional input is set to true.                                                                                               +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic OuterAut(A::ParAxlAlg, n::RngIntElt :RunCheck:=false)->AlgMatElt, RngIntElt /*input is the algebra A with Miyamoto group A_n. Specify n also.*/
+
+{
+	For an axial algebra a whose Miyamoto group is A_n, find an outside automorphism induced by an odd involution of S_n. As a biproduct we get m-clossure for A.
+}  
+	require n gt 0: "The integer n must be positive"; 
+	require GroupName(MiyamotoGroup(A)) eq Sprintf("A%o",n): "The Miyamoto group of A must be A_n for the given n"; 
+	axes:=Axes(A);
+	axes:=&join[x:x in axes];
+	W:=VectorSpace(Rationals(),Dimension(A));
+	SS:=SymmetricGroup({(Dimension(A)-#axes)+1..Dimension(A)});/* Here note that by construction (Justin verified), the generating axes ocuppy the last k 
+							       positions of the canonical basis, where k is the number of axes.*/
+	/* G is the corresponding alternating group.*/
+	G:=Alt(n);
+	invs:=[x[3]:x in ConjugacyClasses(G)|x[1] eq 2];
+	invs:=[invs[i]^G:i in [1..#invs]]; /*actually we need to iterate over all the conjugacy classes of A_n which are involutions. 
+for A_5 providence has it that we have only one.*/
+	/*	we can can do invs:=&join[x:x in invs];*/
+	invs:=&join[x:x in invs];
+	cyc:=Sym(n)!(1,2);
+	invols:=invs;
+	actions:= {@<i,Index(invols,(invols[i]^cyc))>:i in [1..#invols]@};
+	actions:=[x:x in actions|x[1] lt x[2]];/*this gives the conjugation action of cyc on the set  of all axes*/
+	start:=Dimension(A)-#axes;
+	outsider:=SS!(actions[1][1]+start, actions[1][2]+start);
+	outsider*:=&*[SS!(actions[i][1]+start,actions[i][2]+start):i in [2..#actions]];
+	axes_inds:=[(Dimension(A)-#axes)+1..Dimension(A)];
+	unfilled_inds:=[x:x in [1..Dimension(A)]|not x in [(Dimension(A)-#axes)+1..Dimension(A)]];
+	mclos:=1 ;
+	if #axes eq Dimension(A) then 
+		 print "algebra is 1-closed";
+	else 
+		 mclos+:=1;
+	end if;
+	outside_aut:=ZeroMatrix(Rationals(),Dimension(A),Dimension(A));
+	found:=[];
+	for i in axes_inds do 
+		outside_aut[i]:=W!(Eltseq(A.(i^outsider)));
+		Append(~found,i);
+	end for;
+	for i in axes_inds do 
+		for j in axes_inds do 
+			if i lt j then 
+				prod:=(A.i)*(A.j);
+				prod_vec:=W!Eltseq(prod);
+				sup:=Support(prod_vec);
+			       	if #{x:x in sup|x in unfilled_inds} eq 1 then
+					l:=[x:x in sup|x in unfilled_inds][1];
+					im:=(A.(i^outsider)*(A.(j^outsider)))-&+[prod_vec[m]*(A!((W!Eltseq(A.m))*outside_aut)):m in sup|m ne l];
+					outside_aut[l]:=(W!Eltseq(im))/(prod_vec[l]);
+					Append(~found,l);
+					unfilled_inds:=[x:x in unfilled_inds|x notin found];
+				end if;
+			 end if;
+		end for;
+	end for;
+	old_found:=found;
+	new:=[x:x in found|not x in axes_inds];
+	while #unfilled_inds gt 0 do
+	       new_found:=[];
+	       for i:=new[1] to new[#new] do 
+		      for j in axes_inds do
+			      prod:=(A.i)*(A.j);
+			      prod_vec:=W!Eltseq(prod);
+			      sup:=Support(prod_vec);
+			      if #{x:x in sup|x in unfilled_inds} eq 1 then 
+				      l:=[x:x in sup|x in unfilled_inds][1]; 
+				      im:=(A!(W!(Eltseq(A.i))*outside_aut))*(A!((W!(Eltseq(A.j)))*outside_aut))-A!(&+[prod_vec[m]*(W!(Eltseq(A.m))*outside_aut):m in sup|m ne l]);
+				      outside_aut[l]:=(W!Eltseq(im))/(prod_vec[l]);
+				      Append(~found,l);
+				      unfilled_inds:=[x:x in unfilled_inds|x ne l];
+			      end if;
+		   end for;
+	    end for;
+	    mclos+:=1;
+		    new:=[x:x in found|not x in old_found];
+		    old_found:=found;
+	end while;
+ 	//outside_aut^2 eq Identity(Parent(outside_aut));
+	if not RunCheck eq false then 
+		forall{x:x in [y:y in CartesianPower( [1..Dimension(A)] ,2)| y[1] le y[2] ]|A!((W!Eltseq((A.(x[1]))*(A.(x[2]))))*outside_aut) eq A!((W!Eltseq(A.(x[1])))*outside_aut)*(A!((W!Eltseq(A.(x[2])))*outside_aut))};/**/
+	end if;
+	return outside_aut,mclos;
+end intrinsic;
+
+/* NOTE: the function above is actually redundant, we can achieve what it does bu creating a map which maps the axes to axes in such a way that the action is equivalent to an odd permutation then apply the map in ExtendMapToAut. */ 
