@@ -1612,24 +1612,67 @@ intrinsic AnnInSubspace(A::ParAxlAlg, V::ModTupFld, W::ModTupFld)-> ModTupFld
         m:=#bas;	
         M:=ZeroMatrix(Rationals(),m*d,d); 
 	for k:=1 to m do
-
 		for l:=1 to d do
 		       	row:=[];
-
 			for i:=1 to d do
 				for j:=1 to d do 	
 					ii:=Minimum({i,j});jj:=Maximum({i,j});
 					M[d*(k-1)+l][i]+:=bas[k][j]*tens[IntegerRing()!((ii-1)/2*(2*d+2-ii))+jj-ii+1][l];
 				end for; 
 			end for;
-		
 		end for;
-	
 	end for;
-		
 		big_vec:=VectorSpace(Rationals(),d*m)!0;	
 		_,sols:=Solution(Transpose(M),big_vec);
 		bas_sols:=Basis(sols);
 		sub_ann:=[&+[Eltseq(bas_sols[i])[j]*V.j:j in [1..d]]:i in [1..Dimension(sols)]];
 		return sub<W|sub_ann>;
+end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an algebra A, determine if a subalgebra V is a unital algebra.                                                                      +
++                                                                                                                                           +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+intrinsic HasIdentitySubAlg(A::ParAxlAlg, V::ModTupFld)-> BoolElt, ParAxlAlgElt
+{
+	Given an axial algebra A, and a vector space V which is a subalgebra of A, determine if V has a one as an algebra. It returns true if an identity exists in V, as well the identity, false is returned otherwise.
+}
+	require Degree(V) eq Dimension(A): "V must be  a subspace of A.";
+	require forall{i:i in [1..Dimension(V)]|forall{j:j in [i..Dimension(V)]|A`W!Eltseq((A!V.i)*(A!V.j)) in V}}: "V is not closed under multiplication"; 
+	tens:=[];
+	d:=Dimension(V);
+	W:=VectorSpace(Rationals(),Dimension(A));
+	basmat:=Matrix(Rationals(),[Eltseq(V.i):i in [1..d]]);
+	for i:=1 to d do 
+		for j:=1 to d do 
+			if i le j then
+				Append(~tens, Solution(basmat,W!Eltseq(A!V.i*A!V.j)));
+			end if;
+		end for;
+	end for;
+	k:=1;
+	rows:=[];
+	vecs:=[];
+	sols:=[];
+	for k:=1 to d do
+		for l:=1 to d do
+		       	row:=[];
+			for i:=1 to d do
+				ii:=Minimum({i,k});jj:=Maximum({i,k});
+				Append(~row,tens[IntegerRing()!((ii-1)/2*(2*d+2-ii))+jj-ii+1][l]); 
+			end for;
+			Append(~rows,row);	
+		end for;
+		vec:=Vector(BaseField(A),[0*i:i in [1..d]]);
+		vec[k]:=1;
+		Append(~vecs,vec);
+	end for;
+	big_vec:=&cat[Eltseq(x):x in vecs];
+	big_vec:=Vector(Rationals(),big_vec);	
+	bool,part_sol,Sol_space:=IsConsistent(Transpose(Matrix(Rationals(),rows)),big_vec);
+	if bool eq true then 
+		return bool,A!(&+[part_sol[i]*V.i:i in [1..d]]);
+	else
+		return bool,_;
+	end if; 
 end intrinsic;
