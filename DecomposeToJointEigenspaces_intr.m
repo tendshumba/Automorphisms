@@ -1563,11 +1563,11 @@ for A_5 providence has it that we have only one.*/
 	return outside_aut,mclos;
 end intrinsic;
 
-/* NOTE: the function above is actually redundant, we can achieve what it does bu creating a map which maps the axes to axes in such a way that the action is equivalent to an odd permutation then apply the map in ExtendMapToAut. */
+/* NOTE: the function above is actually redundant, we can achieve what it does by creating a map which maps the axes to axes in such a way that the action is equivalent to an odd permutation then apply the map in ExtendMapToAut. */
 
 intrinsic MultTensor(t::SeqEnum, u::ModTupFldElt, v::ModTupFldElt)-> ModTupFldElt
 {
-	Given a tensor consisting of products v_iv_j for j greater or equak to i, where the v_ks are a basis for a subalgebra of an axial algebra, find the product of the given vectors u and v. 
+	Given a tensor consisting of products v_iv_j for j greater or equal to i, where the v_ks are a basis for a subalgebra of an axial algebra, find the product of the given vectors u and v. Here u and v as well as the vectors in the tensor mus have degree equal to the dimension of the subalagebra. 
 }
 	require Parent(t[1]) eq Parent(u): "The vector u must be in the same universe as the vectors in the tensor";
 	require Parent(u) eq Parent(v): "The vectors u and v are not compatible"; 
@@ -1582,5 +1582,54 @@ intrinsic MultTensor(t::SeqEnum, u::ModTupFldElt, v::ModTupFldElt)-> ModTupFldEl
 	end if;
 end intrinsic;
 
- 
- 
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an algebra A, a subalgebra V, and a subspace W of V with a prescribed basis as a list of vectors,  determine ann W.                 +
++ The inputs are A, which must be axial, or a tensor which gives algebra multiplication. The basis, bas, of W, can be ordinary vectors.     +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+
+intrinsic AnnInSubspace(A::ParAxlAlg, V::ModTupFld, W::ModTupFld)-> ModTupFld
+{
+	Given an algebra A, a subalgebra V, and a subspace W of V,  determine ann W. 
+}
+	require Degree(V) eq Dimension(A): "V must be a subspace of A as a vector space.";
+	require Degree(W) eq Dimension(A): "W must be a subspace of A as a vector space.";
+	require W subset V: "W must be a subspace of V";
+	tens:=[];
+	bas:=Basis(W);
+	d:=Dimension(V);
+	W:=VectorSpace(Rationals(),Dimension(A));
+	basmat:=Matrix(Rationals(),[Eltseq(V.i):i in [1..d]]);
+	for i:=1 to d do 
+		for j:=1 to d do 
+			if i le j then
+				Append(~tens, Solution(basmat,Vector(BaseField(A),Eltseq(A!Eltseq(V.i)*A!Eltseq(V.j)))));
+			end if;
+		end for;
+	end for;
+/*here we can as well just input the tensor.*/
+	bas:=[Solution(basmat,Vector(BaseField(A),Eltseq(x))):x in bas];	
+        m:=#bas;	
+        M:=ZeroMatrix(Rationals(),m*d,d); 
+	for k:=1 to m do
+
+		for l:=1 to d do
+		       	row:=[];
+
+			for i:=1 to d do
+				for j:=1 to d do 	
+					ii:=Minimum({i,j});jj:=Maximum({i,j});
+					M[d*(k-1)+l][i]+:=bas[k][j]*tens[IntegerRing()!((ii-1)/2*(2*d+2-ii))+jj-ii+1][l];
+				end for; 
+			end for;
+		
+		end for;
+	
+	end for;
+		
+		big_vec:=VectorSpace(Rationals(),d*m)!0;	
+		_,sols:=Solution(Transpose(M),big_vec);
+		bas_sols:=Basis(sols);
+		sub_ann:=[&+[Eltseq(bas_sols[i])[j]*V.j:j in [1..d]]:i in [1..Dimension(sols)]];
+		return sub<W|sub_ann>;
+end intrinsic;
