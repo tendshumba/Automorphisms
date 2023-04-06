@@ -1563,4 +1563,24 @@ for A_5 providence has it that we have only one.*/
 	return outside_aut,mclos;
 end intrinsic;
 
-/* NOTE: the function above is actually redundant, we can achieve what it does bu creating a map which maps the axes to axes in such a way that the action is equivalent to an odd permutation then apply the map in ExtendMapToAut. */ 
+/* NOTE: the function above is actually redundant, we can achieve what it does bu creating a map which maps the axes to axes in such a way that the action is equivalent to an odd permutation then apply the map in ExtendMapToAut. */
+
+intrinsic MultTensor(t::SeqEnum, u::ModTupFldElt, v::ModTupFldElt)-> ModTupFldElt
+{
+	Given a tensor consisting of products v_iv_j for j greater or equak to i, where the v_ks are a basis for a subalgebra of an axial algebra, find the product of the given vectors u and v. 
+}
+	require Parent(t[1]) eq Parent(u): "The vector u must be in the same universe as the vectors in the tensor";
+	require Parent(u) eq Parent(v): "The vectors u and v are not compatible"; 
+	sols:=Roots(Polynomial(IntegerRing(),[-2*#t,1,1]));
+	d:=[x[1]:x in sols|Sign(x[1]) eq 1][1];
+	if Degree(u) ne d then
+		return Sprintf("error, the vector must be %o long\n",d);
+	else
+		sq:=&+[u[i]*v[i]*t[IntegerRing()!((i-1)/2*(2*d+2-i))+1]:i in [1..d]];
+		rest:=&+[&+[(u[i]*v[j]+u[j]*v[i])*t[IntegerRing()!((i-1)/2*(2*d-i+2))+j-i+1]:i in [1..(d-1)],j in [1..d]|j gt i]];
+		return sq+rest;
+	end if;
+end intrinsic;
+
+ 
+ 
