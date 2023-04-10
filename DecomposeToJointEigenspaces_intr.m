@@ -1567,7 +1567,7 @@ end intrinsic;
 
 intrinsic MultTensor(t::SeqEnum, u::ModTupFldElt, v::ModTupFldElt)-> ModTupFldElt
 {
-	Given a tensor consisting of products v_iv_j for j greater or equal to i, where the v_ks are a basis for a subalgebra of an axial algebra, find the product of the given vectors u and v. Here u and v as well as the vectors in the tensor mus have degree equal to the dimension of the subalagebra. 
+	Given a tensor consisting of products v_iv_j for j greater or equal to i, where the v_ks are a basis for a subalgebra of an axial algebra, find the product of the given vectors u and v. Here u and v as well as the vectors in the tensor must have degree equal to the dimension of the subalagebra. 
 }
 	require Parent(t[1]) eq Parent(u): "The vector u must be in the same universe as the vectors in the tensor";
 	require Parent(u) eq Parent(v): "The vectors u and v are not compatible"; 
@@ -1675,4 +1675,23 @@ intrinsic HasIdentitySubAlg(A::ParAxlAlg, V::ModTupFld)-> BoolElt, ParAxlAlgElt
 	else
 		return bool,_;
 	end if; 
+end intrinsic;
+
+/*Utilities required by SatisfiesMonsterFusion. Implements fusion checking as per the paper Universal axial algebras and a theorem of Sakuma.*/ 
+ EigsMinusOne:=[Rationals()!0,1/4,1/32];
+intrinsic fmu(mu:: FldRatElt)->RngUPolElt
+{
+	produce the polynomial f_\{mu\}=Prod (x-lambda), lambda in \{0,1/4,1/32\},lambda ne mu.
+ 
+} 
+	 return &*[Polynomial(Rationals(),[-x,1]):x in EigsMinusOne|x ne mu]; 
+end intrinsic;
+
+/*Given a polynomial p and a matrix M, form p(M).*/
+intrinsic PolynomialAtMat(p::RngUPolElt, M::AlgMatElt)-> AlgMatElt
+{
+	Given a polynomial p and a square matrix M, form p(M).
+}
+	require Nrows(M) eq Ncols(M): "The matrix must be square"; 
+	 return &+[Coefficients(p)[i]*M^(i-1):i in [1..Degree(p)+1]];
 end intrinsic;
