@@ -711,7 +711,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 	ims:=images;
 	sub:=sub<A`W|lst>;
 	m:=1;
-	if #lst eq dim then
+	if forall{i:i in [1..#lst]|forall{j:j in [i..#lst]|A`W!Eltseq((A!lst[i])*(A!lst[j])) in sub}} then
 		closed:=1;
 	else
 		m+:=1;
@@ -732,7 +732,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 				end if;
 			end for;
 		end for;
-		if #lst eq dim then
+		if #lst eq dim or forall{i:i in [1..#lst]|forall{j:j in [i..#lst]|A`W!Eltseq((A!lst[i])*(A!lst[j])) in sub}} then
 			closed:=1;
 		else
 			subclosed:=1;
@@ -764,7 +764,8 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 				end if;
 			end for;
 		end for;
-		if #lst eq dim then
+		//if #lst eq dim or forall{i:i in [1..#lst]|forall{j:j in [i..#lst]|A`W!Eltseq((A!lst[i])*(A!lst[j])) in sub}} then
+		if #lst eq dim then 
 			closed:=1;
 		else
 			subclosed:=1;
@@ -997,7 +998,6 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 end intrinsic; 
 
 
-
 intrinsic FindPerp(A::ParAxlAlg, V::ModTupFld, M::ModTupFld:bool:=true,form:=IdentityMatrix(BaseField(A),Dimension(A)))->ModTupFld
 {
 	Given an axial algebra A, a subalgebra V of A, and a subspace M of V, find all the elements of V which are perpendicular to all the elements of M. 
@@ -1220,7 +1220,6 @@ intrinsic IsRealisableAsAxis(A::ParAxlAlg, elt::GrpPermElt :one:=A!0,form:=Ident
 		end if; 
 		end if;
 	else
-		  
 		x:=elt;
 		aut:=ZeroMatrix(F,n,n);
 		for i:=1 to n do
@@ -1694,4 +1693,190 @@ intrinsic PolynomialAtMat(p::RngUPolElt, M::AlgMatElt)-> AlgMatElt
 }
 	require Nrows(M) eq Ncols(M): "The matrix must be square"; 
 	 return &+[Coefficients(p)[i]*M^(i-1):i in [1..Degree(p)+1]];
+end intrinsic;
+
+/* SatisfiesMonsterFusion here. This will require a form.*/
+  
+/*Suppose that an algebra A has a form U. Let B be a subalgebra of A.
+  This function produces the form restricted to B.*/
+intrinsic RestrictedForm(U::AlgMatElt, B::ModTupFld)-> AlgMatElt
+{
+	Given a subpace B of an axial algebra A admitting a form U, restrict the form to B.
+}
+	require Nrows(U) eq Ncols(U): "The form must be a square matrix";
+	require IsSymmetric(U): "The form must be symmetric";
+	require Degree(B) eq Nrows(U): "B must be a subspace of the parent algebra"; 
+	UU:=ChangeRing(U,BaseRing(B));
+	arr:=[[(VecToMat(B.i)*UU*Transpose(VecToMat(B.j)))[1][1]:j in [1..Dimension(B)]]:i in[1..Dimension(B)]];
+	return Matrix(Rationals(),[Eltseq(x):x in arr]);
+end intrinsic;
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Given an idempotent a in an axial algebra, we wish to find out if a satisfies a fusion law.       +
++                                                                                                   +
++ FindFusion AxlAlgxVectSpace-->2^X, where X:=Spec(a).                                              +
++                                                                                                   +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic FindFusionLaw(A::ParAxlAlg, V::ModTupFld, a::ParAxlAlgElt)->SeqEnum /*V is a subspace which could be A.*/
+{
+	Given an axial algebra A, a subspace V, and an axial algebra element a which lies in V as a subspace, determine if a satisfies a fusion law in V.
+}
+	require a ne  A!0: "a must be nonzero";	
+	require Pow(a,2) eq a: "The given element is not an idempotent";
+	require A`W!Eltseq(a) in V: "a must be coercible to V"; 
+	eigs:=Eigenvalues(AdMatInSubAlg(A,V,a));
+	fus:=[* *];
+	eigs:=SetToSequence(eigs);
+	evals:=[eigs[i][1]:i in [1..#eigs]];
+	mults:=[eigs[i][2]:i in [1..#eigs]];
+	ord_eigs:=[1/1]; 
+	ord_mults:=[x[2]] where x is [y:y in eigs|y[1] eq 1][1];
+	if 0 in evals then
+		Append(~ord_eigs,RationalField()!0);
+		ind:=Index(eigs,x) where x is [y:y in eigs|y[1] eq 0][1];
+		Append(~ord_mults,mults[ind]);
+	end if;
+	for i:=1 to #evals do
+		if evals[i] notin ord_eigs then
+			Append(~ord_eigs,evals[i]);
+			Append(~ord_mults,mults[i]);
+		end if;
+	end for;
+	for j:=1 to #evals do
+    		for k:=j to #evals do
+        	ind:=IntegerRing()!(((j-1)/2)*(2*#evals-j+2))+k-j+1;
+        	fus[ind]:=[*<ord_eigs[j],ord_eigs[k]>,[ ]*];
+    		end for;
+	end for;/*at this stage fus will have <<\mu,\lambda>,[]> for each fusion rule.*/
+	m:=Dimension(V);
+	F:=BaseField(A);
+	W:=VectorSpace(F,m);
+	bas_mat:=Matrix(F,[Eltseq(V.i):i in [1..m]]);
+	Id:=IdentityMatrix(F,m);
+	ad_mat:=AdMatInSubAlg(A,V,a);
+	Projs:=[];
+	for i:=1 to #ord_eigs do
+		Append(~Projs,&*[(ad_mat-ord_eigs[j]*Id)/(ord_eigs[i]-ord_eigs[j]):j in [1..#eigs]|j ne i]);
+	end for;
+	for i:=1 to m do
+		w:=W.i;
+		splits:=[w*Projs[t]:t in [1..#evals]];
+		for j:=1 to #evals do
+			for k:=j to #evals do
+				prod:=(ToBigVec(A,V,splits[j]))*(ToBigVec(A,V,splits[k]));
+				prod_w:=A`W!Eltseq(prod);
+				prod_short:=Solution(bas_mat,prod_w);
+				for s:=1 to #Projs do
+					if prod_short*Projs[s] ne W!0 then
+						ind:=IntegerRing()!(((j-1)/2)*(2*#evals-j+2))+k-j+1;
+						if ord_eigs[s] notin fus[ind][2] then
+						       Append(~fus[ind][2],ord_eigs[s]);  
+						end if;
+					end if;
+				end for;
+			end for;
+		end for;
+	end for;		
+	return fus;
+end intrinsic;
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ A function to find the subalgebra generated by a sequence of axial vectors.                                    +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic SubAlg(L::SetIndx )->ModTupFld 
+{
+	Given an indexed set L of axial vectors, return the subalgebra of the parent algebra that is generated by L. 
+} 
+	require #L gt 0: "L must be nonempty";
+	A:=Parent(L[1]); 
+	require Type(L[1]) eq ParAxlAlgElt: "The vectors in L must be algebra elements"; 
+	n:=Dimension(A);
+	W:=VectorSpace(BaseField(A),n);
+	lst:=[W!Eltseq(L[i]):i in [1..#L]];/*set up the vectors in L as ordinary vectors*/
+	if #L eq 1 and W!0 in lst then
+		return sub<W|W!0>;
+	end if;
+	/* we start by finding a maximally independent set.*/ 
+	max_independent_set:=[];
+	non_zero:=[];
+	for i:=1 to #L do
+		if lst[i] ne W!0 then
+			Append(~non_zero,lst[i]);
+		end if;
+	end for;
+	V:=sub<W|non_zero[1]>;
+	if #non_zero eq 1 then 
+		max_independent_set:=non_zero;
+	else 
+		Append(~max_independent_set, non_zero[1]); 
+		for i:=2 to #non_zero do
+			if not non_zero[i] in V then
+				Append(~max_independent_set, non_zero[i]);
+				V+:=sub<W|non_zero[i]>;
+			end if;
+		end for;	
+	end if;
+	max_independent_set:=[A!x:x in max_independent_set];
+	bool,VV:=ExtendMapToAlgebra(max_independent_set, max_independent_set);
+	if bool eq true then 
+		return W;
+	else
+		return VV;
+	end if; 
+end intrinsic;
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ An alternative for checking if an idempotent satisfies the Monster Fusion law if the aglgebra has form M   +
++                                                                                                            +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+intrinsic SatisfiesMonsterFusion(u::ParAxlAlgElt ,M::AlgMatElt)->BoolElt
+{
+	Given an idempotent u in an axial algebra A and the form M, determine if u satisfies the Monster M(1/4, 1/32) fusion law.
+}
+	require Pow(u,2) eq u: "The given element must be an idempotent";
+	require Nrows(M) eq Ncols(M): "The form must be a square matrix";
+	require IsSymmetric(M): "The form must be symmetric"; 
+	A:=Parent(u);/*This is the axial algebra in question. */
+	d:=Dimension(A);
+	require Nrows(M) eq d: "The dimension of the form must agree with the dimension of the algebra";
+	F:=BaseField(A);
+	X:=&join[x:x in Axes(A)];
+	//admat:=Matrix(Rationals(),[Eltseq(u*A.i):i in [1..d]]);
+	admat:=AdMat(u);
+	Eigs:=Eigenvalues(admat);
+	Evals:=[x[1]:x in Eigs];
+	mults:=[x[2]:x in Eigs];
+	if forall(x){x:x in Evals|x in [1,0,1/4,1/32]} eq false then
+		printf "the eigenvalue %o is not in [1,0,1/4,1/32]\n",x;
+		return false;
+	end if;
+	if &+[x:x in mults] lt d then
+		print " Multiplities do not add up.\n";
+		return false;
+	end if;
+/*In the calculation these matrices are used multiple times. Precompute them. Should surely speed things up as dimension grow.*/
+	f0:=fmu(Rationals()!0);
+	f0_mat:=PolynomialAtMat(f0,admat);
+	f4:=fmu(1/4);
+	f4_mat:=PolynomialAtMat(f4,admat);
+	f32:=fmu(1/32);
+	f32_mat:=PolynomialAtMat(f32,admat);
+	f0_0:=Polynomial(Rationals(),[0,1]);
+	f0_0_mat:=PolynomialAtMat(f0_0,admat);
+	f0_4:=Polynomial(Rationals(),[-1/4,1]);
+	f0_4_mat:=PolynomialAtMat(f0_4,admat);
+	f0_32:=Polynomial(Rationals(),[-1/32,1]);
+	f0_32_mat:=PolynomialAtMat(f0_32,admat);
+	f4_4:=Polynomial(Rationals(),[0,-1,1]);
+	f4_4_mat:=PolynomialAtMat(f4_4,admat);
+	f4_32:=Polynomial(Rationals(),[-1/32,1]);
+	f4_32_mat:=PolynomialAtMat(f4_32,admat);
+	f32_32:=&*[Polynomial(Rationals(),[-x,1]):x in [1,0,1/4]];
+	f32_32_mat:=PolynomialAtMat(f32_32,admat);
+	bools:=[];
+	Append(~bools,forall{x :x in [y:y in CartesianPower([1..#X],2)|y[1] le y[2] ]|(VecToMat((A!Eltseq((VecToMat(X[x[1]]-FrobFormAtElements(X[x[1]],u,M)*u))*f0_mat))*(A!Eltseq((VecToMat(X[x[2]]-FrobFormAtElements(X[x[2]],u,M)*u))*f0_mat))))*f0_0_mat eq VecToMat(A!0)});
+	Append(~bools,forall{<x,y>:x,y in X|(VecToMat((A!Eltseq((VecToMat(x-FrobFormAtElements(x,u,M)*u))*f0_mat))*(A!Eltseq((VecToMat(y-FrobFormAtElements(y,u,M)*u))*f4_mat))))*f0_4_mat eq VecToMat(A!0)});
+	Append(~bools,forall{<x,y>:x,y in X|(VecToMat((A!Eltseq((VecToMat(x-FrobFormAtElements(x,u,M)*u))*f0_mat))*(A!Eltseq((VecToMat(y-FrobFormAtElements(y,u,M)*u))*f32_mat))))*f0_32_mat eq VecToMat(A!0)});
+	Append(~bools,forall{<x,y>:x,y in X|(VecToMat((A!Eltseq((VecToMat(x-FrobFormAtElements(x,u,M)*u))*f4_mat))*(A!Eltseq((VecToMat(y-FrobFormAtElements(y,u,M)*u))*f4_mat))))*f4_4_mat eq VecToMat(A!0)});
+	Append(~bools,forall{<x,y>:x,y in X|(VecToMat((A!Eltseq((VecToMat(x-FrobFormAtElements(x,u,M)*u))*f4_mat))*(A!Eltseq((VecToMat(y-FrobFormAtElements(y,u,M)*u))*f32_mat))))*f4_32_mat eq VecToMat(A!0)});
+	Append(~bools,forall{<x,y>:x,y in X|(VecToMat((A!Eltseq((VecToMat(x-FrobFormAtElements(x,u,M)*u))*f32_mat))*(A!Eltseq((VecToMat(y-FrobFormAtElements(y,u,M)*u))*f32_mat))))*f32_32_mat eq VecToMat(A!0)});
+	return forall{x:x in bools|x eq true}; 
 end intrinsic;
