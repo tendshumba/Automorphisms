@@ -18,13 +18,39 @@ intrinsic Algebra(A::ParAxlAlg) -> AlgGen
   }
   require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra has not completed.";
   
+  return Algebra<BaseRing(A), Dimension(A) | A`mult>;
 end intrinsic;
 
-intrinsic Axes(A::ParAxlAlg) -> Alg
+intrinsic AxesOrbitRepresentatives(A::ParAxlAlg) -> SetIndx
   {
-  Returns the algebra of a ParAxlAlg.
+  Returns a set of orbit representatives of axes of a ParAxlAlg coerced into an algebra.
   }
+  // This will check it is a complete algebra.
+  AA := Algebra(A);
   
+  return {@ AA!A`axes[i]`id`elt : i in [1..#A`axes] @};
+end intrinsic;
+
+
+intrinsic Axes(A::ParAxlAlg) -> SetIndx
+  {
+  Returns the set of axes of a ParAxlAlg coerced into an algebra.
+  }
+  // This will check it is a complete algebra.
+  AA := Algebra(A);
+  
+  G := Group(A);
+  
+  axes := {@@};
+  
+  for i in [1..#A`axes] do
+    H := A`axes[i]`stab;
+    trans := Transversal(G, H);
+    
+    orbit := {@ AA!(A`axes[i]`id*g)`elt : g in trans @};
+  end for;
+
+  return &join axes;
 end intrinsic;
 
 // Add some more here as needed
@@ -121,6 +147,8 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false,
     form - the Frobenius form
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
   }
+  
+  
   
 end intrinsic;
 
