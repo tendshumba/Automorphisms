@@ -153,6 +153,8 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 		/*this operation makes the calculation slow so do only as last resort.*/
 		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) gt 0 then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] cat extra_rels>; 
+		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) eq 0 then  
+			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] >; 
 		end if; 
 	elif length eq 0 then
 		if extra_rels eq [] then  
@@ -853,7 +855,7 @@ end intrinsic;
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0)-> SetIndx
 {
-	We use the brute force approach withy the restriction that found idempotents must be of length 1. If the resultant ideal is not zero dimensional it will return fail.
+	We use the brute force approach with the restriction that found idempotents must be of length 1. If the resultant ideal is not zero dimensional it will return fail.
 }
 	if id eq A!0 then
        		_,id:=HasIdentityAlg(A);
