@@ -957,7 +957,7 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 	for i:=1 to #shape_ns do
 		N:=shape_ns[i];
 		/*This loop will attempt to get two axes x_1,x_2 such that t_a*t_{x_i} has order N. If the orbit a does not have such x_i on first try immediately go to the next orbit*/ 
-		while j lt #axes do
+		while j le #axes do
 			init_num:=#maxes;
 	 		for k:=1 to #axes[j] do 
 		 		if Minimum({l:l in [1..6]|(TauMapMonster(a1)*TauMapMonster(axes[j][k]))^l eq IdentityMatrix(BaseField(A),Dimension(A))}) eq N then
@@ -965,7 +965,7 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 				end if;
 		 		incr:=#maxes- init_num;
 		 		if incr eq 0 then
-		 			j+:=1;
+		 			k+:=1;
 		 		end if;
 				if #maxes ge 2 then 
 		/*at this stage we check if the Miyamoto group us 2-generated, which is true for S_n, so for those groups we would be done.*/ 
