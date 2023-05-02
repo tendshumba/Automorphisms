@@ -1,4 +1,4 @@
-177,0
+174,0
 S,JointEigenspaceDecomposition,"Given an indexed set of axes L = { a_1, ..., a_n}, decompose the algebra into joint eigenspaces for these axes. Returns an associative array where the element A_lm_1(a_1) cap ... cap A_lm_n(a_n) has keys give by the set of eigenvalues { lm_1, ..., lm_n }",0,1,0,0,0,0,0,0,0,151,,457,-38,-38,-38,-38,-38
 S,AdMat,"Given an axial algebra element a, find its ad_a matrix",0,1,0,0,0,0,0,0,0,ParAxlAlgElt,,177,-38,-38,-38,-38,-38
 S,HasIdentityAlg,"Given an axial algebra A, determine if it has identity. Returns true if and only if it has one. 	If true, the identity is returned as a second element",0,1,0,0,0,0,0,0,0,ParAxlAlg,,36,ParAxlAlgElt,-38,-38,-38,-38
