@@ -23,6 +23,7 @@ FindAllIdempotents:=function(A,V:length:=0,form:=IdentityMatrix(BaseField(A),Dim
 		else
 			U:=form;
 		end if;/*at this stage we either have a form or the function has already returned a fail*/
+		
 		if one eq A!0 then
 			try
 				bool,one:=HasIdentityAlg(A);
@@ -37,7 +38,8 @@ FindAllIdempotents:=function(A,V:length:=0,form:=IdentityMatrix(BaseField(A),Dim
 		elif not one eq A!0 then
 			one:=AF!Eltseq(one);		
 		end if;	
-			len_rest:=FrobFormAtElements(one,v,U)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
+		
+		len_rest:=FrobFormAtElements(one,v,U)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest]>;
 		elif extra_rels ne [] then  
@@ -50,31 +52,33 @@ FindAllIdempotents:=function(A,V:length:=0,form:=IdentityMatrix(BaseField(A),Dim
 			I:=ideal<R|Eltseq(v*v-v) cat extra_rels>;
 		end if;
 	end if;
-		varsize:=VarietySizeOverAlgebraicClosure(I);
-		if Dimension(I) le 0 then
-			var:=Variety(I);
-			if #var eq varsize then
-				idemps:=[];
-				for x in var do
-					ide:=&+[x[i]*A!V.i:i in [1..m]];
-					Append(~idemps,ide);
-				end for;
-				return idemps;
-			else
-				FClos:=AlgebraicClosure(FF);
-				varF:=Variety(I,FClos);
-				AClos:=ChangeRing(A,FClos);
-				idemps:=[];
-				for x in varF do
-					ide:=&+[x[i]*AClos!V.i:i in [1..m]];
-					Append(~idemps,ide);
-				end for;
-				return idemps, FClos;
-			end if;
-		elif Dimension(I) eq 1 then
-			print "ideal not zero-dimensional";
-			return "fail";
+	
+	
+	varsize:=VarietySizeOverAlgebraicClosure(I);
+	if Dimension(I) le 0 then
+		var:=Variety(I);
+		if #var eq varsize then
+			idemps:=[];
+			for x in var do
+				ide:=&+[x[i]*A!V.i:i in [1..m]];
+				Append(~idemps,ide);
+			end for;
+			return idemps;
+		else
+			FClos:=AlgebraicClosure(FF);
+			varF:=Variety(I,FClos);
+			AClos:=ChangeRing(A,FClos);
+			idemps:=[];
+			for x in varF do
+				ide:=&+[x[i]*AClos!V.i:i in [1..m]];
+				Append(~idemps,ide);
+			end for;
+			return idemps, FClos;
 		end if;
+	elif Dimension(I) eq 1 then
+		print "ideal not zero-dimensional";
+		return "fail";
+	end if;
 
 	end function;
 

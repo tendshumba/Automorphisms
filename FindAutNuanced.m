@@ -30,8 +30,10 @@ FindAutNuanced:=function(A:one:=A!0, form:=IdentityMatrix(BaseField(A), Dimensio
 			elif types[i] ne "4A" then 
 				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
 			end if; 
+			
 			printf "orbit %o %o nice idempotents found\n", count,types[i];
-			if not #idemps eq 0 then 
+			
+			if #idemps ne 0 then 
 				AA:=ChangeRing(A,BaseField(Parent(idemps[1])));
 				aa:=AA!Eltseq(a);
 				for u in idemps do
