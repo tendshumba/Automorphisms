@@ -53,7 +53,6 @@ intrinsic AxesOrbitRepresentatives(A::ParAxlAlg) -> SetIndx, List
   return axes, decs;
 end intrinsic;
 
-
 intrinsic Axes(A::ParAxlAlg) -> SetIndx
   {
   Returns the set of axes of a ParAxlAlg coerced into an algebra.
@@ -153,6 +152,7 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
 				A32_vectorspace := ChangeRing(A32_vectorspace, FF);
 				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
 				
+				// Forming this determinant takes all the time!!
 				extra := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
 			else
 			  extra := [];
@@ -264,19 +264,46 @@ end intrinsic;
 
 
 // FindTwin
-intrinsic FindMultiples(a::AlgElt: eigenspace:=false, form := false) -> SetIndx
+intrinsic FindMultiples(a::AlgElt, form::AlgMatElt) -> SetIndx
   {
-  Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a.
+  Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a.  The axis supplied must be of Monster, or Jordan type.
   }
+  require HasMonsterFusionLaw(a): "The element is not of Monster or Jordan type.";
+  A := Parent(a);
+
+  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
+  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
+
+  ada := AdjointMatrix(a);
   
+	eigenspace := Eigenspace(ada, 1/32);
+	if Dimension(eigenspace) eq 0 then
+	  eiegnspace := Eigenspace(ada, 1/4);
+	  require Dimension(eigenspace) ne 0: "The element given has only eigenvalues 1, or 0";
+	end if;
+	
+	ann := AnnihilatorOfSpace(A, eigenspace);
+	
+	// NEED TO COMPLETE
+  
+
+
+
+	
 end intrinsic;
 
 intrinsic AnnihilatorOfSpace(A::Alg, U::ModTupFld) -> ModTupFld
   {
   Given an algebra A and a subspace U of A, return the subspace (not a subalgebra) of A which annihilates U.
   }
+  n := Dimension(A);	
+  require Dimension(U) le n: "U must be a subspace of A";
+  require BaseRing(A) eq BaseRing(U): "The subspace and the algebra are over different fields.";
   
+  // create the matrix which is the horizontal join of the matrices ad_a|_U for each a in a basis of A.
+  M := HorizontalJoin([Matrix([ A.i*(A!u) : i in [1..n]]) : u in Basis(U)]);
   
+  return Nullspace(M);
 end intrinsic;
 
 
