@@ -79,7 +79,7 @@ end intrinsic;
 
 /*
 
-
+Some additional data
 
 
 */
@@ -93,7 +93,11 @@ IdentityLength := AssociativeArray([* <"2A", (2^2*3)/5>,
                                       <"5A", (2^5)/7>,
                                       <"6A", (3*17)/(2*5)> *]);
 
+/*
 
+===============  The main algorithms ====================
+
+*/
 // FindAutNuanced
 intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   {
@@ -173,13 +177,13 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   		  
   		  // check for the Monster fusion law
   		  for y in possibles do
-  		    // COMPLETE THIS
-  		    Include(~found, y);
+  		    if HasMonsterFusionLaw(y) then
+    		    Include(~found, y);
+    		  end if;
   		  end for;
   		end for;
     end for;
   end for;
-  
   
   return found;
 end intrinsic;
@@ -331,4 +335,62 @@ intrinsic HasInducedMap(M::ModTupFld, phi::Map) -> BoolElt, .
   Given a module M for an algebra A and an automorphism phi of A.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in A and m in M.
   }
   
+end intrinsic;
+
+/*
+
+============ Checking axes and fusion laws ==================
+
+*/
+intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+  {
+  Check if an algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
+  }
+  require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
+  
+  if not IsIdempotent(u) then
+    print("Element is not an idempotent");
+    return false;
+  end if;
+  
+  F := Universe(fusion_values);
+  fusion_set := {@ F | 1, 0 @} join fusion_values;
+  
+  A := Parent(u);
+  adu := AdjointMatrix(u);
+  
+  eigs := {@ t[1] : t in Eigenvalues(adu) @};
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev : ev in eigs | ev notin fusion_set } then
+    printf("Eigenvalue %o not in %o\n"), ev, fusion_set;
+    return false;
+  end if;
+  
+  // Find the eigenspaces
+  espace := AssociativeArray([* <ev, Eigenspace(adu, ev)> : ev in fusion_set *]);
+  
+  // The multiplicities attached are sometimes not reliable
+  if Dimension(A) ne &+[ Dimension(espace[k]) : k in fusion_set] then
+    print("The element is not semisimple.");
+    return false;
+  end if;
+  
+  // Check the fusion law
+  ebas := AssociativeArray([* <ev, Basis(espace[ev])> : ev in fusion_set *]);
+
+  al := fusion_set[3];
+  bt := fusion_set[4];
+
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ]; 
+
+  for t in fus_law do
+    a,b,S := Explode(t);
+    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | p in &+[espace[s] : s in S]} then
+      return false;
+    end if;
+  end for;
+
+  return true;
 end intrinsic;
