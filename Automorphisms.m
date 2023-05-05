@@ -4,7 +4,8 @@ Automorphisms of axial algebras
 
 
 */
-
+// Define an verbose setting for printing
+declare verbose Axes_verb, 2;
 /*
 
 Functions to retrieve the algebra and properties from a ParAxlAlg
@@ -16,7 +17,7 @@ intrinsic Algebra(A::ParAxlAlg) -> AlgGen
   {
   Returns the algebra of a ParAxlAlg.
   }
-  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra has not completed.";
+  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra is not complete.";
   
   return Algebra<BaseRing(A), Dimension(A) | A`mult>;
 end intrinsic;
@@ -74,6 +75,15 @@ intrinsic Axes(A::ParAxlAlg) -> SetIndx
   return &join axes;
 end intrinsic;
 
+intrinsic MiyamotoMatrixGroup(A::ParAxlAlg) -> GrpMat
+  {
+  Given a complete ParAxlAlg A, returns the Miyamoto group as a matrix group.  
+  }
+  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra is not complete.";
+  
+  return MatrixGroup(A`Wmod);
+end intrinsic;
+
 // Add some more here as needed
 
 /*
@@ -120,7 +130,7 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
     a := axes[i];
     dec := decomp[i];
     
-    printf "Orbit number %o of %o\n", i, #axes;
+    vprintf Axes_verb, 1: "Orbit number %o of %o\n", i, #axes;
     
     /*
     For one of our known axes a, we want to find a new axis b
@@ -134,7 +144,7 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
     
     for k in Keys(IdentityLength) do
       // Get the length of z
-      printf "  Eigenvalue is %o\n", k;
+      vprintf Axes_verb, 1: "  Eigenvalue is %o\n", k;
       len := IdentityLength[k] - 1;
       
       // if the type is 4A, then there are infinitely many such idempotents
@@ -153,27 +163,29 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
 				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
 				
 				// Forming this determinant takes all the time!!
+				t := Cputime();
 				extra := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+				vprintf Axes_verb, 2: "  Found the extra 4A relation in %o secs\n", Cputime()-t;
 			else
 			  extra := [];
 			end if;
 			
 			t := Cputime();
-			print "  Finding idempotents";
   		idems := FindAllIdempotents(A, A0: length:=len, form:=form, extra_rels:=extra);
-  		printf "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
+  		vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
   		
   		// From the idempotents found, find the algebra B = <<a,b>> and sift for Monster type axes.
   		for z in idems do
   		  // Since z = 1-a, we can find 1
   		  one := a+z;
   		  // The subalgebra B must be contained in the 1-eigenspace of one.
-  		  BB := Eigenspace(AdjointMatrix(one), 1);
+  		  ad := Matrix([one*A.j : j in [1..Dimension(A)]]);
+  		  BB := Eigenspace(ad, 1);
   		  
   		  t := Cputime();
-  			print "  Finding idempotents";
+  			vprint Axes_verb, 1: "  Finding idempotents";
   		  possibles := FindAllIdempotents(A, BB: length:=1, form:=form);
-  		  printf "  Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
+  		  vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
   		  
   		  // check for the Monster fusion law
   		  for y in possibles do
@@ -261,37 +273,12 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false,
   
   return idems;
 end intrinsic;
+/*
 
+============ Functions to find twins/multiples ===============
 
-// FindTwin
-intrinsic FindMultiples(a::AlgElt, form::AlgMatElt) -> SetIndx
-  {
-  Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a.  The axis supplied must be of Monster, or Jordan type.
-  }
-  require HasMonsterFusionLaw(a): "The element is not of Monster or Jordan type.";
-  A := Parent(a);
-
-  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
-  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
-
-  ada := AdjointMatrix(a);
-  
-	eigenspace := Eigenspace(ada, 1/32);
-	if Dimension(eigenspace) eq 0 then
-	  eiegnspace := Eigenspace(ada, 1/4);
-	  require Dimension(eigenspace) ne 0: "The element given has only eigenvalues 1, or 0";
-	end if;
-	
-	ann := AnnihilatorOfSpace(A, eigenspace);
-	
-	// NEED TO COMPLETE
-  
-
-
-
-	
-end intrinsic;
-
+*/
+// First we need this useful function
 intrinsic AnnihilatorOfSpace(A::Alg, U::ModTupFld) -> ModTupFld
   {
   Given an algebra A and a subspace U of A, return the subspace (not a subalgebra) of A which annihilates U.
@@ -306,6 +293,73 @@ intrinsic AnnihilatorOfSpace(A::Alg, U::ModTupFld) -> ModTupFld
   return Nullspace(M);
 end intrinsic;
 
+intrinsic FindMultiples(a::AlgElt, form::AlgMatElt) -> SetIndx
+  {
+  Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a.  The axis supplied must be of Monster, or Jordan type.
+  }
+  require HasMonsterFusionLaw(a): "The element is not of Monster or Jordan type.";
+  A := Parent(a);
+
+  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
+  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
+
+  ada := Matrix([A.i*a : i in [1..Dimension(A)]]);
+  
+	eigenspace := Eigenspace(ada, 1/32);
+	if Dimension(eigenspace) eq 0 then
+	  eiegnspace := Eigenspace(ada, 1/4);
+	  require Dimension(eigenspace) ne 0: "The element given has only eigenvalues 1, or 0";
+	end if;
+	
+	// We now find any twins/multiples b.
+	// If b has the same Miyamoto automorphism as a, then their 1/32-eigenspaces (resp 1/4-) U are equal.
+	// This implies that b-a \in Ann(U)
+	
+	ann := AnnihilatorOfSpace(A, eigenspace);
+	
+	// If such a b does exist, then b is in the coset a + U
+	// We search for idempotents in the subspace <a,U>
+	
+	idems := FindAllIdempotents(A, sub<VectorSpace(A)|Vector(a), ann>: form:=form, length := 1);
+	
+	return idems;
+end intrinsic;
+/*
+
+========== Functions to find Jordan axes =============
+
+*/
+// First we need the Fixed subalgebra of A
+intrinsic FixedSubalgebra(A::Alg, G::GrpMat) -> Alg
+  {
+  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
+  }
+  require Dimension(G) eq Dimension(A): "The matrix group G must be in the same dimension as A.";
+  // We should really check whether G is a subgroup of automorphisms of A
+  
+  V := GModule(G);
+  fix := Fix(V);
+  
+  return sub<A | [Eltseq(V!v) : v in Basis(fix)]>;
+end intrinsic;
+
+intrinsic JordanAxes(A::Alg, G::GrpMat: form := false) -> Alg
+  {
+  Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
+  }
+  // This will check that the dimensions of G and A or compatible.
+  B := FixedSubalgebra(A, G);
+  
+  // Why can we assume that a Jordan type axis should have length 1???  Not necessarily true for 2B
+  // idems := FindAllIdempotents(A, Vectorspace(B): form:= form, length := 1);
+  
+  V := VectorSpace(A);
+  U := sub<V | [Vector(A!b) : b in Basis(B)]>;
+  idems := FindAllIdempotents(A, U);
+  
+  // Since b is in the fixed subalgebra, it has trivial 1/32 part, so we can just check for Monster Fusion law.
+  return {@ b : b in idems | HasMonsterFusionLaw(b) @};
+end intrinsic;
 
 // DecomposeToJointEigenspaces 
 intrinsic JointEigenspaceDecomposition(L::SetIndx) -> Assoc
@@ -376,7 +430,7 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
   
   if not IsIdempotent(u) then
-    print("Element is not an idempotent");
+    vprint Axes_verb, 1: "Element is not an idempotent";
     return false;
   end if;
   
@@ -384,13 +438,13 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   fusion_set := {@ F | 1, 0 @} join fusion_values;
   
   A := Parent(u);
-  adu := AdjointMatrix(u);
+  adu := Matrix([A.i*u : i in [1..Dimension(A)]]);
   
   eigs := {@ t[1] : t in Eigenvalues(adu) @};
   
   // Check we don't have extra eigenvalues
   if exists(ev){ ev : ev in eigs | ev notin fusion_set } then
-    printf("Eigenvalue %o not in %o\n"), ev, fusion_set;
+    vprintf Axes_verb, 1: "Eigenvalue %o not in %o\n", ev, fusion_set;
     return false;
   end if;
   
@@ -399,7 +453,7 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   
   // The multiplicities attached are sometimes not reliable
   if Dimension(A) ne &+[ Dimension(espace[k]) : k in fusion_set] then
-    print("The element is not semisimple.");
+    vprint Axes_verb, 1: "The element is not semisimple.";
     return false;
   end if;
   
