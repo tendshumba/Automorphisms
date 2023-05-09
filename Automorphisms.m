@@ -2092,3 +2092,73 @@ intrinsic IdentifyShape(lst::SeqEnum)->MonStgElt
 	end if;
 	return shape; 
 end intrinsic;
+        
+intrinsic MinimumGeneratorsMiyamotoGroup(A::ParAxlAlg)-> SeqEnum
+{
+	Given an axial algebra A, find a minimum generating set of Miy(G) as a matrix group. Return a sequence of matrices forming the mimnimum generating set.
+} 
+	dim:=Dimension(A);
+	F:=BaseField(A);
+	axes:=Axes(A);
+	a1:=axes[1][1];
+	powers:=[];
+	for i:=1 to 6 do 
+		Append(~powers,Sprintf("%o",i));
+	end for;
+	shape_len:=#Shape(A)[2];
+	shape:=Shape(A)[2]; 
+	shape_nums:=IntegerRing()!(shape_len/2);
+	/* this means the shape is of form n_1L_1n_2L_2...n_(shape_nums)L_(shape_nums), repetitions being possible. */ 
+	shape_ns:=IndexedSet([Position(powers,shape[2*i-1]):i in [1..shape_nums]]);/*the above shows that the numbers occupy the odd positions.*/
+	lst:=[];
+	Id:=IdentityMatrix(F,dim);
+	ord:=#MiyamotoGroup(A);
+	gp:=MatrixGroup<dim,F|TauMapMonster(a1)>;
+	for i:=1 to #shape_ns do 
+		N:=shape_ns[i];
+		for j:=1 to #axes do
+			for k:=1 to #axes[j] do
+				if axes[j][k] ne a1 then
+					prod:=TauMapMonster(a1)*TauMapMonster(axes[j][k]);
+					if Minimum({l:l in [1..6]|(prod)^l eq Id}) eq N and IsCoercible(gp,prod) eq false then
+						Append(~lst,prod);
+					end if;
+				end if;
+				gp:=MatrixGroup<dim, F|lst>;
+				if Order(gp) eq ord then
+					break i;
+				end if;
+			end for;
+		end for;
+	end for;
+	printf "A minimum set of %o generators found \n", #lst;
+	return lst;
+end intrinsic;
+
+intrinsic FullAutomorphismGroupAlg(A::ParAxlAlg, L::SeqEnum)->GrpMat
+{
+	Given an axial algebra and a sequence L consisting of all known axes of A, (found for instance using the methods above), return the full automorphism group of A as a matrix group.
+}
+	/*Note that groups like A_n, L_n which have covers always have an extra automorphism class induced from the action of the cover on G. I have a routine that produces a single such automorphism which must then be added to the minimum set of generators.*/
+	require #L gt 0: "The sequence must be non-empty";
+	require Parent(L[1]) eq A: "The list must have elements from the algebra A";
+	require forall{x:x in L|HasMonsterFusion(x)}: "The list L must consist of axes";
+	min_gens:=MinimumGeneratorsMiyamotoGroup(A);
+	n:=Dimension(A);
+	F:=BaseField(A);
+	group:=MatrixGroup<n,F|min_gens>;
+	for x in L do
+		if not IsJordanAxis(x) then
+			if not IsCoercible(group, TauMapMonster(x)) then
+				Append(~min_gens, TauMapMonster(x));
+				group:=MatrixGroup<n,F|min_gens>;
+			end if;
+		else /*x is a Jordan axis.*/
+			if not IsCoercible(group, SigmaMapMonster(x)) then
+				Append(~min_gens, SigmaMapMonster(x));
+				group:=MatrixGroup<n,F|min_gens>;
+			end if;
+		end if;
+	end for;
+	return MatrixGroup<n,F|min_gens>;
+end intrinsic;
