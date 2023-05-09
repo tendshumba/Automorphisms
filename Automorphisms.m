@@ -908,7 +908,9 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 }
 	lst:=MinimumGeneratorsMiyamotoGroup(A);
 	printf "A minimum set of %o generators found \n", #lst;
-	Mat:=ZeroMatrix(BaseField(A),#lst*dim,dim); 		 
+	dim:=Dimension(A);
+	F:=BaseField(A);
+	Mat:=ZeroMatrix(F,#lst*dim,dim); 		 
 	for l:=1 to #lst do
 		for i:=1 to dim do
 			for j:=1 to dim do
@@ -920,7 +922,7 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 		end for;
 	end for;
 	print "System of equations set up";
-	_,sol:=Solution(Transpose(Mat),Vector(BaseField(A),[0*i:i in [1..#lst*dim]]));
+	_,sol:=Solution(Transpose(Mat),Vector(F,[0*i:i in [1..#lst*dim]]));
 	return sol;
 end intrinsic; 
 
