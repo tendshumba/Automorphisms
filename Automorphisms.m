@@ -2034,7 +2034,7 @@ intrinsic IdentifyShape(lst::SeqEnum)->MonStgElt
 		if tens[[IntegerRing()!((x[1]-1)/2*(2*dim+2-x[1]))+x[2]-x[1]+1:x in [<3,4>,<3,5>,<3,6>,<6,6>]]] eq Expected then
 			shape*:="5A";
 		end if;*/
-		shape*:="5A";/*we really don't need all the other checks  since order 5 is unique. I had it to just xheck implementaion which if fine. Same
+		shape*:="5A";/*we really don't need all the other checks  since order 5 is unique. I had it to just check implementation which if fine. Same
 		for 6A*/
 	elif ord eq 6 then 
 		/*strings:=["a_{-2}","a_{-1}","a_0","a_1","a_2","a_3","a_{\rho^3}","u_{\rho^2}"];
