@@ -2134,8 +2134,8 @@ end intrinsic;
 
 intrinsic IsAutomorphicSubAlgMap(A::ParAxlAlg, V::ModTupFld, phi::AlgMatElt)->BoolElt
 {
-	Given an axial algebra A, a subalgebra V of A as a vector space, together with a map phi\: V->V, determine if phi is an automorphism of V. 
-	Note here that phi will be given as a dim(V)xdim(V) matrix.
+	Given an axial algebra A, a subalgebra V of A as a vector space, together with a map phi: V->V, determine if phi is an automorphism of V. 
+	Note here that phi must be given as a dim(V)xdim(V) matrix.
 }	
 	m:=Dimension(V); 
 	require V subset A`W: "V must be a subspace of A";
