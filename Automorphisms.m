@@ -2153,3 +2153,11 @@ intrinsic IsAutomorphicSubAlgMap(A::ParAxlAlg, V::ModTupFld, phi::AlgMatElt)->Bo
 	return forall{i:i in [1..m]|forall{j:j in [1..m]|MultTensor(tens,ToSmallVec(A,V,A!V.i),ToSmallVec(A,V,A!V.j))*phi eq MultTensor(tens,ToSmallVec(A,V,A!V.i)*phi,ToSmallVec(A,V,A!V.j)*phi)}};
 
 end intrinsic;
+
+intrinsic MiyamotoGroupMat(A::ParAxlAlg)->GrpMat
+{
+	Given an axial algebra A, return the Miyamoto group as a matrix group.
+}
+
+	return MatrixGroup<Dimension(A),BaseField(A)|MinimumGeneratorsMiyamotoGroup(A)>;
+end intrinsic;
