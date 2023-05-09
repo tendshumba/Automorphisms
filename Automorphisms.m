@@ -2131,3 +2131,25 @@ intrinsic FullAutomorphismGroupAlg(A::ParAxlAlg, L::SeqEnum)->GrpMat
 	end for;
 	return MatrixGroup<n,F|min_gens>;
 end intrinsic;
+
+intrinsic IsAutomorphicSubAlgMap(A::ParAxlAlg, V::ModTupFld, phi::AlgMatElt)->BoolElt
+{
+	Given an axial algebra A, a subalgebra V of A as a vector space, together with a map phi\: V->V, determine if phi is an automorphism of V. 
+	Note here that phi will be given as a dim(V)xdim(V) matrix.
+}	
+	m:=Dimension(V); 
+	require V subset A`W: "V must be a subspace of A";
+	require forall{i:i in [1..m]|forall{j:j in [i..m]| A`W!Eltseq((A!V.i)*(A!V.j)) in V}}: "V is not closed under multiplication";
+	require Nrows(phi) eq Ncols(phi): "The map phi must be in square matrix form";
+	require Nrows(phi) eq m: "The matrix dimension of the square matrix phi must be equal to the dimension of V";
+	require IsInvertible(phi): "The map phi must be invertible";
+	BasMat:=Matrix(BaseField(A),[Eltseq(V.i):i in [1..m]]);
+	tens:=[];
+	for i:=1 to m do
+		for j:=i to m do 
+			Append(~tens,Solution(BasMat,A`W!Eltseq((A!V.i)*(A!V.j))));
+		end for;
+	end for;
+	return forall{i:i in [1..m]|forall{j:j in [1..m]|MultTensor(tens,ToSmallVec(A,V,A!V.i),ToSmallVec(A,V,A!V.j))*phi eq MultTensor(tens,ToSmallVec(A,V,A!V.i)*phi,ToSmallVec(A,V,A!V.j)*phi)}};
+
+end intrinsic;
