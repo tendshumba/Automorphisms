@@ -906,40 +906,7 @@ intrinsic FindFixedSubAlgebra(A::ParAxlAlg)-> ModTupFld
 {
 	Given an axial algebra A, find the fixed subalgebra, i.e., the set of all vectors which are fixed by all Miyamoto involutions or known automorphisms.
 }
-        dim:=Dimension(A);
-	F:=BaseField(A);
-	axes:=Axes(A);
-	a1:=axes[1][1];
-	powers:=[];
-	for i:=1 to 6 do 
-		Append(~powers,Sprintf("%o",i));
-	end for;
-	shape_len:=#Shape(A)[2];
-	shape:=Shape(A)[2]; 
-	shape_nums:=IntegerRing()!(shape_len/2);
-	/* this means the shape is of form n_1L_1n_2L_2...n_(shape_nums)L_(shape_nums), repetitions being possible. */ 
-	shape_ns:=IndexedSet([Position(powers,shape[2*i-1]):i in [1..shape_nums]]);/*the above shows that the numbers occupy the odd positions.*/
-	lst:=[];
-	Id:=IdentityMatrix(F,dim);
-	ord:=#MiyamotoGroup(A);
-	gp:=MatrixGroup<dim,F|TauMapMonster(a1)>;
-	for i:=1 to #shape_ns do 
-		N:=shape_ns[i];
-		for j:=1 to #axes do
-			for k:=1 to #axes[j] do
-				if axes[j][k] ne a1 then
-					prod:=TauMapMonster(a1)*TauMapMonster(axes[j][k]);
-					if Minimum({l:l in [1..6]|(prod)^l eq Id}) eq N and IsCoercible(gp,prod) eq false then
-						Append(~lst,prod);
-					end if;
-				end if;
-				gp:=MatrixGroup<dim, F|lst>;
-				if Order(gp) eq ord then
-					break i;
-				end if;
-			end for;
-		end for;
-	end for;
+	lst:=MinimumGeneratorsMiyamotoGroup(A);
 	printf "A minimum set of %o generators found \n", #lst;
 	Mat:=ZeroMatrix(BaseField(A),#lst*dim,dim); 		 
 	for l:=1 to #lst do
