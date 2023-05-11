@@ -125,7 +125,6 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			bool,M:=HasFrobeniusForm(A);
 			if bool eq false then
 				return "fail, the concept of length is not defined";
-	//		elif bool eq true then
 			end if;
 		end if;/*at this stage we either have a form or the function has already returned a fail*/
 		M:=form;
@@ -254,11 +253,6 @@ intrinsic AdPowerAtElement(a::ParAxlAlgElt,n::RngIntElt,v::ParAxlAlgElt) ->ParAx
 	if n eq 0 then 
 		return v;
 	else
-		/*count:=n;prod:=v;
-       		while count gt 0 do
-	 		prod:=prod*a;count:=count-1;
-		end while;
-	      return prod;*/ /*basically that is what Pow is for.*/
 		return (Pow(a,n))*v; 
 	end if;
 end intrinsic;
@@ -283,8 +277,7 @@ Check if the axial algebra element u satisfies the Monster M(1/4,1/32) fusion la
  bas:=Basis(Parent(u));
  eigens:=[1,0,1/4,1/32];
  P<s>:=PolynomialRing(Rationals(),1);
- /*ad:=Matrix(BaseField(Parent(u)), [Eltseq(u*bas[i]): i in [1..Dimension(Parent(u))]]);*/
- ad:=AdMat(u);/* This little utility does the above.*/ 
+ ad:=AdMat(u);
   eigs:=IndexedSet(Eigenvalues(ad));
  if exists(ev){eigs[i][1]:i in [1..#eigs]|not (eigs[i][1]  in eigens)} then
   printf("Eigenvalue %o not in [1,0,1/4,1/32]\n"),ev;
@@ -680,7 +673,6 @@ end 	intrinsic;
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
-	/*(A,l1,l2)-->bool,vector space or matrix.*/
 {
 	Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 
 	extend the map as far as possible. If the map extends to the whole algebra, return true and a matrix that gives a multiplicative map A->A
@@ -691,6 +683,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 	require Type(input[1]) eq ParAxlAlgElt and Type(images[1]) eq ParAxlAlgElt: "The elements of the given lists are not algebra elements.";
 	 A:=Parent(input[1]);
 	require IsIndependent({A`W!Eltseq(x):x in input}): "The input list must be independent.";
+	require IsIndependent({A`W!Eltseq(x):x in images}): "The images list must be independent.";
 	dim:=Dimension(A);
 	closed:=0;
 	F:=BaseField(A);
@@ -751,7 +744,6 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 				end if;
 			end for;
 		end for;
-		//if #lst eq dim or forall{i:i in [1..#lst]|forall{j:j in [i..#lst]|A`W!Eltseq((A!lst[i])*(A!lst[j])) in sub}} then
 		if #lst eq dim then 
 			closed:=1;
 		else
@@ -789,7 +781,6 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 		return true, std_phi;
 	else
 		return true,std_phi;
-		/*this will be multiplicative by construction, we need only check that it is invertible;*/
 	end if;
 end intrinsic;
 
@@ -836,7 +827,7 @@ end intrinsic;
 +extra condition that the idempotents found be of length 1. We require the algebra identity as    +
 +optional input.                                                                                  +												
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0)-> SetIndx
+intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0,form:=IdentityMatrix(BaseField(A),Dimension(A)))-> SetIndx
 {
 	We use the brute force approach with the restriction that found idempotents must be of length 1. If the resultant ideal is not zero dimensional it will return fail.
 }
@@ -845,8 +836,16 @@ intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0)-> SetIndx
 	else/* user supplied identity.*/
 		require Parent(id) eq A: "The elemnt is not in A";
 		require forall{i:i in [1..Dimension(A)]|id*A.i eq A.i}: "The given element is not the identity of A.";
+	end if;
+	if form eq IdentityMatrix(BaseField(A),Dimension(A)) then
+		bool,M:=HasFrobeniusForm(A);
+		form:=M;/*Here again we assumed the existence of form. Provision needs to be made when it does not exist.*/
+	else
+		require Nrows(form) eq Ncols(form): "The form must be a sqaure matrix";
+		require IsSymmetric(form): "The form must be symmetric";
+		require Nrows(form) eq Dimension(A): "The size of the form must be the same as the dimension of A.";
 	end if;	
-	idemps:=FindAllIdempotents(A,A`W:length:=1,one:=id);
+idemps:=FindAllIdempotents(A,A`W:length:=1,one:=id, form:=form);
 	try 
 		if idemps eq "fail" then	
 		return "fail";
@@ -871,7 +870,6 @@ intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0)-> SetIndx
 				printf "new %o axes found\n",#new;
 			end if;
 				return IndexedSet(axes);
-	
 		return "fail";
 	end try;
 end intrinsic;
