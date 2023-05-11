@@ -143,7 +143,6 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 		end if;	
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest]>;
-		/*this operation makes the calculation slow so do only as last resort.*/
 		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) gt 0 then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] cat extra_rels>;
 
@@ -153,7 +152,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 	elif length eq 0 then
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v)>;
-		elif extra_rels ne [] then //remember to use these as above- last resort 
+		elif extra_rels ne [] then 
 			I:=ideal<R|Eltseq(v*v-v) cat extra_rels>;
 		end if;
 	end if;
@@ -466,10 +465,11 @@ Additional (optional) inputs are :
 				AFF:=ChangeRing(A,FF);
 				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
 				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
+		/*this operation makes the calculation slow so do only as last resort.*/
 				if Dimension(ideal<RR|Eltseq(uu) cat len_rest>) gt 0 then
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
-					printf "This took %o seconds\n",t;
+					printf "Extra relations found in %o seconds\n",t;
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
 				end if;
 			elif k ne "4A" then 
