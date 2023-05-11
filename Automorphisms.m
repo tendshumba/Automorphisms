@@ -112,7 +112,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 	require Nrows(form) eq Ncols(form): "Form must be a square matrix";
 	require Type(one) eq ParAxlAlgElt: " one must be an axial algebra element"; 
 	n:=Dimension(A);
-	id_mat:=IdentityMatrix(BaseField(A),n);/*might now be useless.*/	
+	id_mat:=IdentityMatrix(BaseField(A),n);
 	m:=Dimension(U);
 	F:=BaseField(A);
 	require IsCoercible(F,length): "The length must be a field element";
@@ -125,37 +125,35 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			bool,M:=HasFrobeniusForm(A);
 			if bool eq false then
 				return "fail, the concept of length is not defined";
+	//		elif bool eq true then
 			end if;
-		else
-			M:=form;
 		end if;/*at this stage we either have a form or the function has already returned a fail*/
+		M:=form;
 		if one eq A!0 then
-			try
-				bool,one:=HasIdentityAlg(A);
-				bool:=HasIdentityAlg(A);
-			catch e;
-				if bool eq false then
-					 len_rest:=FrobFormAtElements(v,v,M)-length;
-				end if;
-			end try;
-			_,one:=HasIdentityAlg(A);
-			one:=AF!Eltseq(one);
+			bool,one:=HasIdentityAlg(A);
+			if bool eq false then
+				 len_rest:=FrobFormAtElements(v,v,M)-length;
+			elif bool eq true then
+				one:=AF!Eltseq(one);
+				len_rest:=FrobFormAtElements(one,v,M)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
+			end if;
 		else 
 			one:=AF!Eltseq(one);		
-		end if;	
 			len_rest:=FrobFormAtElements(one,v,M)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
+		end if;	
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest]>;
 		/*this operation makes the calculation slow so do only as last resort.*/
 		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) gt 0 then  
-			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] cat extra_rels>; 
-		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) eq 0 then  
+			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] cat extra_rels>;
+
+		else	
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] >; 
 		end if; 
 	elif length eq 0 then
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v)>;
-		elif extra_rels ne [] then  
+		elif extra_rels ne [] then //remember to use these as above- last resort 
 			I:=ideal<R|Eltseq(v*v-v) cat extra_rels>;
 		end if;
 	end if;
@@ -440,6 +438,14 @@ Additional (optional) inputs are :
 	end if; 
 	require Parent(one) eq A: "The given vector is not in the algebra";
 	F := BaseField(A);
+	/*The following conditional statement needs additonal code for the else part in the event A is non-unital. However, for the algebras in our current paper this does not occur, since we proved they are unital.
+	 */
+	if one eq A!0 then 
+		_,one:=HasIdentityAlg(A);
+	end if;
+	if form eq IdentityMatrix(F,Dimension(A)) then
+	_,form:=HasFrobeniusForm(A);
+	end if;/* Here again it is conceivable that A does not have a form. Additional things to be done in such a case*/
 	axes:=Axes(A);
 	reps:=[axes[i][1]:i in [1..#axes]];
 	reps:=[A!x:x in reps]; 
@@ -459,8 +465,13 @@ Additional (optional) inputs are :
 				FF:=FieldOfFractions(RR); 
 				AFF:=ChangeRing(A,FF);
 				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
-				extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
-				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
+				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
+				if Dimension(ideal<RR|Eltseq(uu) cat len_rest>) gt 0 then
+					t:=Cputime();
+					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
+					printf "This took %o seconds\n",t;
+					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
+				end if;
 			elif k ne "4A" then 
 				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
 			end if; 
