@@ -54,6 +54,7 @@ intrinsic AxesOrbitRepresentatives(A::ParAxlAlg) -> SetIndx, List
   return axes, decs;
 end intrinsic;
 
+// edit this to also return a SetIndx of decompositions as above
 intrinsic Axes(A::ParAxlAlg) -> SetIndx
   {
   Returns the set of axes of a ParAxlAlg coerced into an algebra.
@@ -70,6 +71,9 @@ intrinsic Axes(A::ParAxlAlg) -> SetIndx
     trans := Transversal(G, H);
     
     orbit := {@ AA!(A`axes[i]`id*g)`elt : g in trans @};
+    
+    // coerce the basis vectors from the decompositions above into the module over G and act using the transversal.
+    Include(~axes, orbit);
   end for;
 
   return &join axes;
@@ -108,6 +112,97 @@ IdentityLength := AssociativeArray([* <"2A", (2^2*3)/5>,
 
 */
 // FindAutNuanced
+intrinsic FindNewAxes(A::AxlAlg) -> SetIndx
+  {
+  Finds all axes in an axial algebra. 
+  }
+  FL := FusionLaw(A);
+  require FL eq MonsterFusionLaw(1/4,1/32): "The axial algebra must be of Monster type (1/4, 1/32)";
+  
+  so, _ := HasFrobeniusForm(A);
+  require so: "The axial algebra has no Frobenius form.";
+  
+  ev := Evaluation(FL);
+  // this should just be [1,2,3,4]
+  index := [ i where so := exists(i){i : i in [1..4] | i@ev eq lm} : lm in [1,0,1/4,1/32]];
+  
+  F := BaseField(A);
+  G := MiyamotoGroup(A);
+  axes := Axes(A);
+  // get the orbits
+  axes_reps := {@ {@ a*g : g in G @} : a in axes @};
+  
+  found := {@ @};
+  for i in [1..#axes_reps] do
+    a := axes_reps[i,1];
+    dec := Decomposition(a);
+    
+    vprintf Axes_verb, 1: "Orbit number %o of %o\n", i, #axes;
+    /*
+    For one of our known axes a, we want to find a new axis b
+    So B = < a,b > is a 2-generated axial algebra.  These all have identity.
+    We search for z = 1-a is an idempotent in the 0-eigenspace for a.
+    
+    We use this to identify 1 and then the subalgebra.
+    */
+    A0 := Part(dec, FL!2);
+    
+    for k in Keys(IdentityLength) do
+      // Get the length of z
+      vprintf Axes_verb, 1: "  Eigenvalue is %o\n", k;
+      len := IdentityLength[k] - 1;
+      
+      // if the type is 4A, then there are infinitely many such idempotents
+      // Hence we need to add some extra relations
+      if k eq "4A" then
+        A32 := Part(dec, FL!4);
+        R := PolynomialRing(F, Dimension(A0));
+				FF := FieldOfFractions(R);
+				AFF := ChangeRing(Algebra(A), FF);
+				z := &+[R.i*AFF!A0.i : i in [1..Dimension(A0)]];
+				// Since z is in A0 and the fusion law is Seress, z A32 subset A32
+				// So we can restrict the action of the adjoint of z to A32
+				bas := Basis(A32);
+				A32_vectorspace := VectorSpaceWithBasis(bas);
+				A32_vectorspace := ChangeRing(A32_vectorspace, FF);
+				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
+				
+				extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+			else
+			  extra_rels := [];
+			end if;
+			
+			t := Cputime();
+  		idems := FindAllIdempotents(Algebra(A), A0: length:=len, form:=form, extra_rels:=extra_rels);
+  		vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
+  		
+  		// From the idempotents found, find the algebra B = <<a,b>> and sift for Monster type axes.
+  		for z in idems do
+  		  // Since z = 1-a, we can find 1
+  		  one := a+z;
+  		  // The subalgebra B must be contained in the 1-eigenspace of one.
+  		  ad := AdjointMatrix(one);
+  		  BB := Eigenspace(ad, 1);
+  		  
+  		  t := Cputime();
+  			vprint Axes_verb, 1: "  Finding idempotents";
+  		  possibles := FindAllIdempotents(A, BB: length:=1, form:=form);
+  		  vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
+  		  
+  		  // check for the Monster fusion law
+  		  for y in possibles do
+  		    if HasMonsterFusionLaw(y) then
+    		    Include(~found, y);
+    		  end if;
+  		  end for;
+  		end for;
+    end for;
+  end for;
+  
+  return found;
+end intrinsic;
+
+
 intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   {
   The inputs are a set axes of (orbit representatives) of the axes and corresponding eigenspace decompositions together with a Frobenius form.
@@ -164,14 +259,14 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
 				
 				// Forming this determinant takes all the time!!
 				t := Cputime();
-				extra := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+				extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
 				vprintf Axes_verb, 2: "  Found the extra 4A relation in %o secs\n", Cputime()-t;
 			else
-			  extra := [];
+			  extra_rels := [];
 			end if;
 			
 			t := Cputime();
-  		idems := FindAllIdempotents(A, A0: length:=len, form:=form, extra_rels:=extra);
+  		idems := FindAllIdempotents(A, A0: length:=len, form:=form, extra_rels:=extra_rels);
   		vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
   		
   		// From the idempotents found, find the algebra B = <<a,b>> and sift for Monster type axes.
@@ -200,11 +295,80 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   return found;
 end intrinsic;
 
+/*
+
+intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:=[], extend_field:=false) -> SetIndx
+  {
+  Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
+  
+  Optional arguments:
+    length - requires the length of the idempotents to be as given
+    extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
+    extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
+  }
+  F := BaseRing(A);
+  n := Dimension(A);
+	m := Dimension(U);
+	
+  require m le n: "U must be a subspace of A"; 
+  if Type(length) ne BoolElt then
+    // We have already checked it has the correct form.
+    require IsCoercible(F, length): "The length of an axis must belong to the field of the algebra";
+  end if;
+  
+  P := PolynomialRing(F, m);
+	FF := FieldOfFractions(P);
+	
+  if extra_rels ne [] then
+    require forall{ x : x in extra_rels | IsCoercible(FF, x)}: "The extra relations do not lie in the correct field";
+  end if;
+  
+	// FF_to_P := hom<FF->P | [ P.i : i in [1..m]]>;
+	AF := ChangeRing(A, FF);
+	
+	// We set up a general element x
+	bas := Basis(U);
+	x := &+[ P.i*AF!bas[i] : i in [1..m]];
+	
+	// We add any extra relations coming from a length restriction
+	if Type(length) ne BoolElt then
+	  formF := ChangeRing(FrobeniusForm(A), FF);
+	  extra_rels cat:= [ InnerProduct(Vector(x)*formF, Vector(x)) - length];
+	end if;
+  
+  // form the ideal
+  I := ideal<P | Eltseq(x*x - x) cat extra_rels>;
+  
+  if Dimension(I) ge 1 then
+    print "The variety of idempotents is not zero-dimensional.  Try adding extra relations.";
+		return false;
+	end if;
+  
+  // Form the variety and check to see if we have all the solutions
+  var := Variety(I);
+  varsize := VarietySizeOverAlgebraicClosure(I);
+  if #var ne varsize then
+    if extend_field then
+      // Maybe find splitting field, if not then algebraic closure
+    else
+      vprint Axes_verb, 1: "Warning: there are additional idempotents over a field extension";
+    end if;
+  end if;
+  
+  // We need to coerce the variety elements back into the algebra
+  // We form a matrix whose rows are the elements of the variety (each row is the coefficients of the basis elements)
+  // and multiply by the matrix of basis elements
+  // idems := {@ A | r : r in Rows(Matrix([[v[i] : i in [1..m]]: v in var])*Matrix(bas)) @};
+  
+  // Do the simple coercion
+  idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+  
+  return idems;
+end intrinsic;
+*/
 
 
-
-// What about field extensions - do we need this??  I don't think so...
-intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false, extra_rels:=[]) -> SetIndx
+intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form:=false, extra_rels:=[], extend_field:=false) -> SetIndx
   {
   Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
   
@@ -212,6 +376,7 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false,
     length - requires the length of the idempotents to be as given
     form - the Frobenius form
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
+    extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
   }
   F := BaseRing(A);
   n := Dimension(A);
@@ -249,7 +414,8 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false,
 	end if;
   
   // form the ideal
-  I := ideal<P | Eltseq(x*x - x) cat extra_rels>;
+  relns := Eltseq(x*x - x) cat extra_rels;
+  I := ideal<P | relns>;
   
   if Dimension(I) ge 1 then
     print "The variety of idempotents is not zero-dimensional.  Try adding extra relations.";
@@ -259,18 +425,32 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form := false,
   // Form the variety and check to see if we have all the solutions
   var := Variety(I);
   varsize := VarietySizeOverAlgebraicClosure(I);
-  if #var ne varsize then
-    print "Warning: there are additional idempotents over a field extension";
-  end if;
   
   // We need to coerce the variety elements back into the algebra
   // We form a matrix whose rows are the elements of the variety (each row is the coefficients of the basis elements)
   // and multiply by the matrix of basis elements
   // idems := {@ A | r : r in Rows(Matrix([[v[i] : i in [1..m]]: v in var])*Matrix(bas)) @};
   
-  // Do the simple coercion
-  idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
   
+  if #var eq varsize then
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  if not extend_field then
+    vprint Axes_verb, 1: "Warning: there are additional idempotents over a field extension";
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  
+  // so we need to extend the field and resolve
+  FClos := AlgebraicClosure(FF);
+  varCl := Variety(I, FClos);
+	ACl := ChangeRing(A, FClos);
+	
+	// Do the simple coercion
+  idems := {@ ACl | &+[ v[i]*ACl!bas[i] : i in [1..m]]: v in varCl @};
   return idems;
 end intrinsic;
 /*
