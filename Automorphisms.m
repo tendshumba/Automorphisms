@@ -845,7 +845,7 @@ intrinsic FindAxesNaiveWithLengthRestriction(A::ParAxlAlg: id:=A!0,form:=Identit
 		require IsSymmetric(form): "The form must be symmetric";
 		require Nrows(form) eq Dimension(A): "The size of the form must be the same as the dimension of A.";
 	end if;	
-idemps:=FindAllIdempotents(A,A`W:length:=1,one:=id, form:=form);
+	idemps:=FindAllIdempotents(A,A`W:length:=1,one:=id, form:=form);
 	try 
 		if idemps eq "fail" then	
 		return "fail";
