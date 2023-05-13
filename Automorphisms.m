@@ -1204,7 +1204,7 @@ end intrinsic;
 
 intrinsic IsInducedFromAxisMat(A::ParAxlAlg, mat::AlgMatElt:one:=A!0,form:=IdentityMatrix(BaseField(A),Dimension(A))) -> BoolElt, SetIndx
 {
-	Given an axial algebra A and a matrix mat, over the base fielf of A, check if mat is induced from an axis. The matrix mat must be invertible. We do not check if it is automorphic. If true, the function will also produce an indexed set of axes in A which induce mat.
+	Given an axial algebra A and a matrix mat, over the base field of A, check if mat is induced from an axis. The matrix mat must be invertible. We do not check if it is automorphic. If true, the function will also produce an indexed set of axes in A which induce mat.
 }
 	/*we assume that the matrix is an automorphism, this will not be checked.*/
 	F:=BaseField(A);
