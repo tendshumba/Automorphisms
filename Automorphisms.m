@@ -125,6 +125,8 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			bool,M:=HasFrobeniusForm(A);
 			if bool eq false then
 				return "fail, the concept of length is not defined";
+			elif bool eq true then
+				form:=M;
 			end if;
 		end if;/*at this stage we either have a form or the function has already returned a fail*/
 		M:=form;
@@ -155,8 +157,8 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			I:=ideal<R|Eltseq(v*v-v) cat extra_rels>;
 		end if;
 	end if;
-		varsize:=VarietySizeOverAlgebraicClosure(I);
 		if Dimension(I) le 0 then
+			varsize:=VarietySizeOverAlgebraicClosure(I);
 			var:=Variety(I);
 			if #var eq varsize then
 				idemps:=[];
