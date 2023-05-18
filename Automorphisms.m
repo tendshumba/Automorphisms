@@ -119,7 +119,7 @@ intrinsic FindNewAxes(A::AxlAlg) -> SetIndx
   FL := FusionLaw(A);
   require FL eq MonsterFusionLaw(1/4,1/32): "The axial algebra must be of Monster type (1/4, 1/32)";
   
-  so, _ := HasFrobeniusForm(A);
+  so, form := HasFrobeniusForm(A);
   require so: "The axial algebra has no Frobenius form.";
   
   ev := Evaluation(FL);
@@ -130,14 +130,13 @@ intrinsic FindNewAxes(A::AxlAlg) -> SetIndx
   G := MiyamotoGroup(A);
   axes := Axes(A);
   // get the orbits
-  axes_reps := {@ {@ a*g : g in G @} : a in axes @};
+  axes_reps := AxisOrbitRepresentatives(A);
   
   found := {@ @};
-  for i in [1..#axes_reps] do
-    a := axes_reps[i,1];
+  for a in axes_reps do
     dec := Decomposition(a);
     
-    vprintf Axes_verb, 1: "Orbit number %o of %o\n", i, #axes;
+    vprintf Axes_verb, 1: "Orbit number %o of %o\n", Position(axes_reps, a), #axes_reps;
     /*
     For one of our known axes a, we want to find a new axis b
     So B = < a,b > is a 2-generated axial algebra.  These all have identity.
@@ -149,32 +148,45 @@ intrinsic FindNewAxes(A::AxlAlg) -> SetIndx
     
     for k in Keys(IdentityLength) do
       // Get the length of z
-      vprintf Axes_verb, 1: "  Eigenvalue is %o\n", k;
+      vprintf Axes_verb, 1: "  Assumed subalgebra is %o\n", k;
       len := IdentityLength[k] - 1;
       
       // if the type is 4A, then there are infinitely many such idempotents
       // Hence we need to add some extra relations
       if k eq "4A" then
+        // All Monster type algebras have an identity
+        so, one := HasOne(A);
+        assert so;
+        
         A32 := Part(dec, FL!4);
         R := PolynomialRing(F, Dimension(A0));
 				FF := FieldOfFractions(R);
-				AFF := ChangeRing(Algebra(A), FF);
-				z := &+[R.i*AFF!A0.i : i in [1..Dimension(A0)]];
-				// Since z is in A0 and the fusion law is Seress, z A32 subset A32
-				// So we can restrict the action of the adjoint of z to A32
-				bas := Basis(A32);
-				A32_vectorspace := VectorSpaceWithBasis(bas);
-				A32_vectorspace := ChangeRing(A32_vectorspace, FF);
-				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
+				AFF := ChangeRing(A, FF);
+				z := &+[R.i*AFF!Eltseq(A0.i) : i in [1..Dimension(A0)]];
 				
-				extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+				len_rest := [ Frobenius(z, AFF!Eltseq(one)) - len ];
+				
+				// Taking the determinant is still is slow, so avoid if possible.
+				if Dimension(ideal<R | Eltseq(z*z-z) cat len_rest>) gt 0 then
+					t := Cputime();
+					// Since z is in A0 and the fusion law is Seress, z A32 subset A32
+				  // So we can restrict the action of the adjoint of z to A32
+				  bas := Basis(A32);
+				  A32_vectorspace := VectorSpaceWithBasis(bas);
+				  A32_vectorspace := ChangeRing(A32_vectorspace, FF);
+				  adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
+				  
+				  extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+				  
+					vprintf Axes_verb, 2: "    Extra 4A relation found in %o seconds\n", t;
+				end if;
 			else
 			  extra_rels := [];
 			end if;
 			
 			t := Cputime();
-  		idems := FindAllIdempotents(Algebra(A), A0: length:=len, form:=form, extra_rels:=extra_rels);
-  		vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
+  		idems := FindAllIdempotents(A, A0: length:=len, extra_rels:=extra_rels);
+  		vprintf Axes_verb, 2: "    Found %o possible identities in %o secs\n", #idems, Cputime()-t;
   		
   		// From the idempotents found, find the algebra B = <<a,b>> and sift for Monster type axes.
   		for z in idems do
@@ -185,9 +197,9 @@ intrinsic FindNewAxes(A::AxlAlg) -> SetIndx
   		  BB := Eigenspace(ad, 1);
   		  
   		  t := Cputime();
-  			vprint Axes_verb, 1: "  Finding idempotents";
-  		  possibles := FindAllIdempotents(A, BB: length:=1, form:=form);
-  		  vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
+  			vprintf Axes_verb, 1: "      Finding idempotents for identity %o of %o\n", Position(idems, z), #idems;
+  		  possibles := FindAllIdempotents(A, BB: length:=1);
+  		  vprintf Axes_verb, 2: "        Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
   		  
   		  // check for the Monster fusion law
   		  for y in possibles do
@@ -245,22 +257,35 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
       // if the type is 4A, then there are infinitely many such idempotents
       // Hence we need to add some extra relations
       if k eq "4A" then
+      
+      
+        // All Monster type algebras have an identity
+        so, one := HasOne(A);
+        assert so;
+        
         A32 := dec[1/32];
         R := PolynomialRing(F, Dimension(A0));
 				FF := FieldOfFractions(R);
 				AFF := ChangeRing(A, FF);
 				z := &+[R.i*AFF!A0.i : i in [1..Dimension(A0)]];
-				// Since z is in A0 and the fusion law is Seress, z A32 subset A32
-				// So we can restrict the action of the adjoint of z to A32
-				bas := Basis(A32);
-				A32_vectorspace := VectorSpaceWithBasis(bas);
-				A32_vectorspace := ChangeRing(A32_vectorspace, FF);
-				adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
 				
-				// Forming this determinant takes all the time!!
-				t := Cputime();
-				extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
-				vprintf Axes_verb, 2: "  Found the extra 4A relation in %o secs\n", Cputime()-t;
+			  formF := ChangeRing(form, FF);
+	      len_rest := [ InnerProduct(Vector(z)*formF, Vector(one)) - len];
+	  
+				// Taking the determinant is still is slow, so avoid if possible.
+				if Dimension(ideal<R | Eltseq(z*z-z) cat len_rest>) gt 0 then
+          // Since z is in A0 and the fusion law is Seress, z A32 subset A32
+				  // So we can restrict the action of the adjoint of z to A32
+				  bas := Basis(A32);
+				  A32_vectorspace := VectorSpaceWithBasis(bas);
+				  A32_vectorspace := ChangeRing(A32_vectorspace, FF);
+				  adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
+				  
+				  // Forming this determinant takes all the time!!
+				  t := Cputime();
+				  extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
+				  vprintf Axes_verb, 2: "  Found the extra 4A relation in %o secs\n", Cputime()-t;
+				end if;
 			else
 			  extra_rels := [];
 			end if;
@@ -295,11 +320,10 @@ intrinsic FindNewAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   return found;
 end intrinsic;
 
-/*
 
 intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:=[], extend_field:=false) -> SetIndx
   {
-  Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
+  Given a decomposition algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
   
   Optional arguments:
     length - requires the length of the idempotents to be as given
@@ -328,12 +352,15 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
 	
 	// We set up a general element x
 	bas := Basis(U);
-	x := &+[ P.i*AF!bas[i] : i in [1..m]];
+	x := &+[ P.i*AF!Eltseq(bas[i]) : i in [1..m]];
 	
 	// We add any extra relations coming from a length restriction
 	if Type(length) ne BoolElt then
-	  formF := ChangeRing(FrobeniusForm(A), FF);
-	  extra_rels cat:= [ InnerProduct(Vector(x)*formF, Vector(x)) - length];
+	  // An axial algebra of Monster type always has an identity
+	  so, one := HasOne(A);
+	  assert so;
+	  
+	  extra_rels cat:= [ Frobenius(x, AF!Eltseq(one)) - length];
 	end if;
   
   // form the ideal
@@ -347,25 +374,34 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
   // Form the variety and check to see if we have all the solutions
   var := Variety(I);
   varsize := VarietySizeOverAlgebraicClosure(I);
-  if #var ne varsize then
-    if extend_field then
-      // Maybe find splitting field, if not then algebraic closure
-    else
-      vprint Axes_verb, 1: "Warning: there are additional idempotents over a field extension";
-    end if;
-  end if;
   
   // We need to coerce the variety elements back into the algebra
   // We form a matrix whose rows are the elements of the variety (each row is the coefficients of the basis elements)
   // and multiply by the matrix of basis elements
   // idems := {@ A | r : r in Rows(Matrix([[v[i] : i in [1..m]]: v in var])*Matrix(bas)) @};
   
-  // Do the simple coercion
-  idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
   
+  if #var eq varsize then
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  if not extend_field then
+    vprint Axes_verb, 1: "Warning: there are additional idempotents over a field extension";
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  
+  // so we need to extend the field and resolve
+  FClos := AlgebraicClosure(FF);
+  varCl := Variety(I, FClos);
+	ACl := ChangeRing(A, FClos);
+	
+	// Do the simple coercion
+  idems := {@ ACl | &+[ v[i]*ACl!bas[i] : i in [1..m]]: v in varCl @};
   return idems;
 end intrinsic;
-*/
 
 
 intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form:=false, extra_rels:=[], extend_field:=false) -> SetIndx
@@ -409,8 +445,12 @@ intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form:=false, e
 	
 	// We add any extra relations coming from a length restriction
 	if Type(length) ne BoolElt then
+    // An axial algebra of Monster type always has an identity
+	  so, one := HasOne(A);
+	  assert so;
+	  
 	  formF := ChangeRing(form, FF);
-	  extra_rels cat:= [ InnerProduct(Vector(x)*formF, Vector(x)) - length];
+	  extra_rels cat:= [ InnerProduct(Vector(x)*formF, Vector(one)) - length];
 	end if;
   
   // form the ideal
@@ -598,11 +638,68 @@ intrinsic HasInducedMap(M::ModTupFld, phi::Map) -> BoolElt, .
   
 end intrinsic;
 
+
+
+
+
 /*
 
 ============ Checking axes and fusion laws ==================
 
 */
+intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+  {
+  Check if a axial algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
+  }
+  require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
+  
+  if not IsIdempotent(u) then
+    vprint Axes_verb, 1: "Element is not an idempotent";
+    return false;
+  end if;
+  
+  F := Universe(fusion_values);
+  fusion_set := {@ F | 1, 0 @} join fusion_values;
+  
+  A := Parent(u);
+  adu := AdjointMatrix(u);
+  
+  eigs := {@ t[1] : t in Eigenvalues(adu) @};
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev : ev in eigs | ev notin fusion_set } then
+    vprintf Axes_verb, 1: "Eigenvalue %o not in %o\n", ev, fusion_set;
+    return false;
+  end if;
+  
+  // Find the eigenspaces
+  espace := AssociativeArray([* <ev, Eigenspace(adu, ev)> : ev in fusion_set *]);
+  
+  // The multiplicities attached are sometimes not reliable
+  if Dimension(A) ne &+[ Dimension(espace[k]) : k in fusion_set] then
+    vprint Axes_verb, 1: "The element is not semisimple.";
+    return false;
+  end if;
+  
+  // Check the fusion law
+  ebas := AssociativeArray([* <ev, Basis(espace[ev])> : ev in fusion_set *]);
+
+  al := fusion_set[3];
+  bt := fusion_set[4];
+
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ]; 
+
+  for t in fus_law do
+    a,b,S := Explode(t);
+    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | Vector(p) in &+[espace[s] : s in S]} then
+      return false;
+    end if;
+  end for;
+
+  return true;
+end intrinsic;
+
 intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
   {
   Check if an algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
