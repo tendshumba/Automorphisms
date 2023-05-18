@@ -461,7 +461,6 @@ Additional (optional) inputs are :
 				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
 				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
 		/*this operation makes the calculation slow so do only as last resort.*/
-				/*( check first setting up the ideal using Groebner and see if it improves*/
 				I1:=ideal<RR|Eltseq(uu*uu-uu) cat len_rest>;
 				Groebner(I1);
 				if Dimension(I1) gt 0 then
