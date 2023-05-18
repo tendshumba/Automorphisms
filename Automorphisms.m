@@ -461,10 +461,13 @@ Additional (optional) inputs are :
 				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
 				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
 		/*this operation makes the calculation slow so do only as last resort.*/
-				if Dimension(ideal<RR|Eltseq(uu*uu-uu) cat len_rest>) gt 0 then
+				/*( check first setting up the ideal using Groebner and see if it improves*/
+				I1:=ideal<RR|Eltseq(uu*uu-uu) cat len_rest>;
+				Groebner(I1);
+				if Dimension(I1) gt 0 then
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
-					printf "Extra relations found in %o seconds\n",t;
+					printf "Extra relations found in %o seconds\n",Cputime(t);
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
 				else
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
