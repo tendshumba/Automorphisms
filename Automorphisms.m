@@ -719,7 +719,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 		else
 			subclosed:=1;
 			for i:=current_inds[1] to #lst do
-				for j:=current_inds[2]+1 to #lst do
+				for j:=current_inds[2] to #lst do
 					w:=(A!lst[i])*(A!lst[j]);
 					ww:=A`W!Eltseq(w);
 					if ww notin sub then
@@ -751,7 +751,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum,images::SeqEnum)->BoolElt,AlgMatElt
 		else
 			subclosed:=1;
 			for i:=current_inds[1] to #lst do
-				for j:=current_inds[2]+1 to #lst do
+				for j:=current_inds[2] to #lst do
 					w:=(A!lst[i])*(A!lst[j]);
 					ww:=A`W!Eltseq(w);
 					if ww notin sub then
