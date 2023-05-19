@@ -8,6 +8,90 @@ Automorphisms of axial algebras
 declare verbose Axes_verb, 2;
 /*
 
+Functions to retrieve the algebra and properties from a ParAxlAlg
+
+Eventually, this can be removed and replaced with a DecAlg
+
+*/
+intrinsic Algebra(A::ParAxlAlg) -> AlgGen
+  {
+  Returns the algebra of a ParAxlAlg.
+  }
+  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra is not complete.";
+  
+  return Algebra<BaseRing(A), Dimension(A) | A`mult>;
+end intrinsic;
+
+intrinsic AxesOrbitRepresentatives(A::ParAxlAlg) -> SetIndx, List
+  {
+  Returns a set of orbit representatives of axes of a ParAxlAlg coerced into an algebra and a List of associative arrays giving the decompositions for each axis.
+  }
+  // This will check it is a complete algebra.
+  AA := Algebra(A);
+  
+  axes := {@ AA!A`axes[i]`id`elt : i in [1..#A`axes] @};
+  
+  eigs := A`fusion_table`eigenvalues;
+  Gr, gr := Grading(A`fusion_table);
+  require Order(Gr) eq 2: "The grading group must be of order 2";
+  
+  deccomps := {@@};
+  
+  keys := AssociativeArray();
+  keys["even"] := {@ e : e in eigs | e@gr eq Gr!1@};
+  keys["odd"] := {@ e : e in eigs | e@gr ne Gr!1@};
+
+  V := A`W;
+  
+  // We use a sequence, so there could be duplicate decompositions
+  decs := [* *];
+  for i in [1..#A`axes] do
+    D := AssociativeArray([* <k, sub<V | Basis(A`axes[i]``attr[{@k@}])> >
+                : k in keys[attr], attr in ["even", "odd"] *]);
+    Append(~decs, D);
+  end for;
+    
+  return axes, decs;
+end intrinsic;
+
+// edit this to also return a SetIndx of decompositions as above
+intrinsic Axes(A::ParAxlAlg) -> SetIndx
+  {
+  Returns the set of axes of a ParAxlAlg coerced into an algebra.
+  }
+  // This will check it is a complete algebra.
+  AA := Algebra(A);
+  
+  G := Group(A);
+  
+  axes := {@@};
+  
+  for i in [1..#A`axes] do
+    H := A`axes[i]`stab;
+    trans := Transversal(G, H);
+    
+    orbit := {@ AA!(A`axes[i]`id*g)`elt : g in trans @};
+    
+    // coerce the basis vectors from the decompositions above into the module over G and act using the transversal.
+    Include(~axes, orbit);
+  end for;
+
+  return &join axes;
+end intrinsic;
+
+intrinsic MiyamotoMatrixGroup(A::ParAxlAlg) -> GrpMat
+  {
+  Given a complete ParAxlAlg A, returns the Miyamoto group as a matrix group.  
+  }
+  require Dimension(A`W) eq Dimension(A`V): "The partial axial algebra is not complete.";
+  
+  return MatrixGroup(A`Wmod);
+end intrinsic;
+
+// Add some more here as needed
+
+/*
+
 Some additional data
 
 
@@ -28,31 +112,30 @@ IdentityLength := AssociativeArray([* <"2A", (2^2*3)/5>,
 
 */
 // FindAutNuanced
-intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
+intrinsic FindAllAxes(axes::SetIndx, decomp::List, form::AlgMatElt) -> SetIndx
   {
-  Finds all axes in an axial algebra. 
+  The inputs are a set axes of (orbit representatives) of the axes and corresponding eigenspace decompositions together with a Frobenius form.
+  
+  We perform the nuanced algorithm to find all axes.  
   }
-  FL := FusionLaw(A);
-  require FL eq MonsterFusionLaw(1/4,1/32): "The axial algebra must be of Monster type (1/4, 1/32)";
-  
-  so, form := HasFrobeniusForm(A);
-  require so: "The axial algebra has no Frobenius form.";
-  
-  ev := Evaluation(FL);
-  // this should just be [1,2,3,4]
-  index := [ i where so := exists(i){i : i in [1..4] | i@ev eq lm} : lm in [1,0,1/4,1/32]];
-  
+  A := Universe(axes);
   F := BaseField(A);
-  G := MiyamotoGroup(A);
-  axes := Axes(A);
-  // get the orbits
-  axes_reps := AxisOrbitRepresentatives(A);
   
+  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
+  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
+  require #axes eq #decomp: "There are not the same number of decompositions as axis representatives.";
+  // Can change this later
+  // What about other characteristics
+  require forall{ d : d in decomp | Type(d) eq Assoc and Keys(d) subset {1,0,1/4,1/32} and &+[Dimension(d[k]) : k in Keys(d)] eq Dimension(A)}: "The decompositions are not in the correct form.";
+  
+
   found := {@ @};
-  for a in axes_reps do
-    dec := Decomposition(a);
+  for i in [1..#axes] do
+    a := axes[i];
+    dec := decomp[i];
     
-    vprintf Axes_verb, 1: "Orbit number %o of %o\n", Position(axes_reps, a), #axes_reps;
+    vprintf Axes_verb, 1: "Orbit number %o of %o\n", i, #axes;
+    
     /*
     For one of our known axes a, we want to find a new axis b
     So B = < a,b > is a 2-generated axial algebra.  These all have identity.
@@ -60,62 +143,66 @@ intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
     
     We use this to identify 1 and then the subalgebra.
     */
-    A0 := Part(dec, FL!2);
+    // Change when decomposition algebra
+    A0 := dec[0];
     
     for k in Keys(IdentityLength) do
       // Get the length of z
-      vprintf Axes_verb, 1: "  Assumed subalgebra is %o\n", k;
+      vprintf Axes_verb, 1: "  Eigenvalue is %o\n", k;
       len := IdentityLength[k] - 1;
       
       // if the type is 4A, then there are infinitely many such idempotents
       // Hence we need to add some extra relations
       if k eq "4A" then
+      
+      
         // All Monster type algebras have an identity
         so, one := HasOne(A);
         assert so;
         
-        A32 := Part(dec, FL!4);
+        A32 := dec[1/32];
         R := PolynomialRing(F, Dimension(A0));
 				FF := FieldOfFractions(R);
 				AFF := ChangeRing(A, FF);
-				z := &+[R.i*AFF!Eltseq(A0.i) : i in [1..Dimension(A0)]];
+				z := &+[R.i*AFF!A0.i : i in [1..Dimension(A0)]];
 				
-				len_rest := [ Frobenius(z, AFF!Eltseq(one)) - len ];
-				
+			  formF := ChangeRing(form, FF);
+	      len_rest := [ InnerProduct(Vector(z)*formF, Vector(one)) - len];
+	  
 				// Taking the determinant is still is slow, so avoid if possible.
 				if Dimension(ideal<R | Eltseq(z*z-z) cat len_rest>) gt 0 then
-					t := Cputime();
-					// Since z is in A0 and the fusion law is Seress, z A32 subset A32
+          // Since z is in A0 and the fusion law is Seress, z A32 subset A32
 				  // So we can restrict the action of the adjoint of z to A32
 				  bas := Basis(A32);
 				  A32_vectorspace := VectorSpaceWithBasis(bas);
 				  A32_vectorspace := ChangeRing(A32_vectorspace, FF);
 				  adz := Matrix([ Coordinates(A32_vectorspace, Vector((AFF!b)*z)) : b in bas]);
 				  
+				  // Forming this determinant takes all the time!!
+				  t := Cputime();
 				  extra_rels := [ Determinant(adz - (31/32)*IdentityMatrix(FF, Dimension(A32))) ];
-				  
-					vprintf Axes_verb, 2: "    Extra 4A relation found in %o seconds\n", t;
+				  vprintf Axes_verb, 2: "  Found the extra 4A relation in %o secs\n", Cputime()-t;
 				end if;
 			else
 			  extra_rels := [];
 			end if;
 			
 			t := Cputime();
-  		idems := FindAllIdempotents(A, A0: length:=len, extra_rels:=extra_rels);
-  		vprintf Axes_verb, 2: "    Found %o possible identities in %o secs\n", #idems, Cputime()-t;
+  		idems := FindAllIdempotents(A, A0: length:=len, form:=form, extra_rels:=extra_rels);
+  		vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #idems, Cputime()-t;
   		
   		// From the idempotents found, find the algebra B = <<a,b>> and sift for Monster type axes.
   		for z in idems do
   		  // Since z = 1-a, we can find 1
   		  one := a+z;
   		  // The subalgebra B must be contained in the 1-eigenspace of one.
-  		  ad := AdjointMatrix(one);
+  		  ad := Matrix([one*A.j : j in [1..Dimension(A)]]);
   		  BB := Eigenspace(ad, 1);
   		  
   		  t := Cputime();
-  			vprintf Axes_verb, 1: "      Finding idempotents for identity %o of %o\n", Position(idems, z), #idems;
-  		  possibles := FindAllIdempotents(A, BB: length:=1);
-  		  vprintf Axes_verb, 2: "        Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
+  			vprint Axes_verb, 1: "  Finding idempotents";
+  		  possibles := FindAllIdempotents(A, BB: length:=1, form:=form);
+  		  vprintf Axes_verb, 2: "  Found %o idempotents in %o secs\n", #possibles, Cputime()-t;
   		  
   		  // check for the Monster fusion law
   		  for y in possibles do
@@ -130,12 +217,13 @@ intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
   return found;
 end intrinsic;
 
-intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:=[], extend_field:=false) -> SetIndx
+intrinsic FindAllIdempotents(A::Alg, U::ModTupFld: length:=false, form:=false, extra_rels:=[], extend_field:=false) -> SetIndx
   {
-  Given a decomposition algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
+  Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
   
   Optional arguments:
     length - requires the length of the idempotents to be as given
+    form - the Frobenius form
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
     extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
   }
@@ -143,9 +231,14 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
   n := Dimension(A);
 	m := Dimension(U);
 	
-  require m le n: "U must be a subspace of A"; 
+  require m le n: "U must be a subspace of A";
+  if Type(form) ne BoolElt then
+    require ISA(Type(form), Mtrx): "The Frobenius form if given must be a matrix";
+    require Nrows(form) eq Ncols(form) and Nrows(form) eq n: "The matrix given for the Frobenius form must be a square matrix with dim(A) rows and columns";
+  end if;  
   if Type(length) ne BoolElt then
     // We have already checked it has the correct form.
+    require Type(form) ne BoolElt: "You need to provide a Frobenius form";
     require IsCoercible(F, length): "The length of an axis must belong to the field of the algebra";
   end if;
   
@@ -161,19 +254,21 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
 	
 	// We set up a general element x
 	bas := Basis(U);
-	x := &+[ P.i*AF!Eltseq(bas[i]) : i in [1..m]];
+	x := &+[ P.i*AF!bas[i] : i in [1..m]];
 	
 	// We add any extra relations coming from a length restriction
 	if Type(length) ne BoolElt then
-	  // An axial algebra of Monster type always has an identity
+    // An axial algebra of Monster type always has an identity
 	  so, one := HasOne(A);
 	  assert so;
 	  
-	  extra_rels cat:= [ Frobenius(x, AF!Eltseq(one)) - length];
+	  formF := ChangeRing(form, FF);
+	  extra_rels cat:= [ InnerProduct(Vector(x)*formF, Vector(one)) - length];
 	end if;
   
   // form the ideal
-  I := ideal<P | Eltseq(x*x - x) cat extra_rels>;
+  relns := Eltseq(x*x - x) cat extra_rels;
+  I := ideal<P | relns>;
   
   if Dimension(I) ge 1 then
     print "The variety of idempotents is not zero-dimensional.  Try adding extra relations.";
@@ -217,26 +312,29 @@ end intrinsic;
 
 */
 // First we need this useful function
-intrinsic AnnihilatorOfSpace(A::DecAlg, U::ModTupFld) -> ModTupFld
+intrinsic AnnihilatorOfSpace(A::Alg, U::ModTupFld) -> ModTupFld
   {
-  Given a decomposition algebra A and a subspace U of A, return the subspace (not a subalgebra) of A which annihilates U.
+  Given an algebra A and a subspace U of A, return the subspace (not a subalgebra) of A which annihilates U.
   }
   require U subset VectorSpace(A): "U must be a subspace of the algebra.";
   
   // create the matrix which is the horizontal join of the matrices ad_a|_U for each a in a basis of A.
-  M := HorizontalJoin([Matrix([ Eltseq(A.i*(A!u)) : i in [1..Dimension(A)]]) : u in Basis(U)]);
+  M := HorizontalJoin([Matrix([ A.i*(A!u) : i in [1..Dimension(A)]]) : u in Basis(U)]);
   
   return Nullspace(M);
 end intrinsic;
 
-intrinsic FindMultiples(a::AxlAlgElt) -> SetIndx
+intrinsic FindMultiples(a::AlgElt, form::AlgMatElt) -> SetIndx
   {
   Given an axis, find the set of all other axes which have the same Miyamoto automorphism as a.  The axis supplied must be of Monster, or Jordan type.
   }
   require HasMonsterFusionLaw(a): "The element is not of Monster or Jordan type.";
   A := Parent(a);
 
-  ada := AdjointMatrix(a);
+  require Nrows(form) eq Ncols(form): "The form must be a square matrix.";
+  require Nrows(form) eq Dimension(A): "The form is not the same dimension as the algebra";
+
+  ada := Matrix([A.i*a : i in [1..Dimension(A)]]);
   
 	eigenspace := Eigenspace(ada, 1/32);
 	if Dimension(eigenspace) eq 0 then
@@ -253,7 +351,7 @@ intrinsic FindMultiples(a::AxlAlgElt) -> SetIndx
 	// If such a b does exist, then b is in the coset a + U
 	// We search for idempotents in the subspace <a,U>
 	
-	idems := FindAllIdempotents(A, sub<VectorSpace(A)|Vector(a), ann>: length := 1);
+	idems := FindAllIdempotents(A, sub<VectorSpace(A)|Vector(a), ann>: form:=form, length := 1);
 	
 	return idems;
 end intrinsic;
@@ -263,7 +361,7 @@ end intrinsic;
 
 */
 // First we need the Fixed subalgebra of A
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> Alg
+intrinsic FixedSubalgebra(A::Alg, G::GrpMat) -> Alg
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
   }
@@ -276,21 +374,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> Alg
   return sub<A | [Eltseq(V!v) : v in Basis(fix)]>;
 end intrinsic;
 
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> Alg
-  {
-  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
-  }
-  if G subset MiyamotoGroup(A) then
-    return FixedSubalgebra(A, G@MiyamotoActionMap(A));
-  elif G subset UniversalMiyamotoGroup(A) then
-    _, phi := UniversalMiyamotoGroup(A);
-    return FixedSubalgebra(A, (G@phi)@MiyamotoActionMap(A));
-  else
-    error "The permutation group must be a subgroup of the (universal) Miyamoto group.";
-  end if;
-end intrinsic;
-
-intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
+intrinsic JordanAxes(A::Alg, G::GrpMat: form := false) -> Alg
   {
   Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
   }
@@ -364,19 +448,14 @@ intrinsic HasInducedMap(M::ModTupFld, phi::Map) -> BoolElt, .
   }
   
 end intrinsic;
-
-
-
-
-
 /*
 
 ============ Checking axes and fusion laws ==================
 
 */
-intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
   {
-  Check if a axial algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
+  Check if an algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
   }
   require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
   
@@ -389,7 +468,7 @@ intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> Bo
   fusion_set := {@ F | 1, 0 @} join fusion_values;
   
   A := Parent(u);
-  adu := AdjointMatrix(u);
+  adu := Matrix([A.i*u : i in [1..Dimension(A)]]);
   
   eigs := {@ t[1] : t in Eigenvalues(adu) @};
   
@@ -419,7 +498,7 @@ intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> Bo
 
   for t in fus_law do
     a,b,S := Explode(t);
-    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | Vector(p) in &+[espace[s] : s in S]} then
+    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | p in &+[espace[s] : s in S]} then
       return false;
     end if;
   end for;
