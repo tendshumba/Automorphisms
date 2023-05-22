@@ -157,6 +157,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 			I:=ideal<R|Eltseq(v*v-v) cat extra_rels>;
 		end if;
 	end if;
+		t:=Cputime();
 		if Dimension(I) le 0 then
 			varsize:=VarietySizeOverAlgebraicClosure(I);
 			var:=Variety(I);
@@ -168,8 +169,10 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 				end for;
 				return IndexedSet(idemps);
 			else
-				FClos:=AlgebraicClosure(FF);
-				varF:=Variety(I,FClos);
+				//FClos:=AlgebraicClosure(FF);
+				FClos:=AlgebraicClosure(Rationals());
+				varF:=Variety(ChangeRing(I,FClos));
+				//varF:=Variety(I,FClos);
 				AClos:=ChangeRing(A,FClos);
 				idemps:=[];
 				for x in varF do
@@ -458,36 +461,54 @@ Additional (optional) inputs are :
 				RR:=PolynomialRing(BaseField(A),Dimension(W));
 				FF:=FieldOfFractions(RR); 
 				AFF:=ChangeRing(A,FF);
+				t:=Cputime();
 				uu:=&+[RR.i*AFF!W.i:i in [1..Dimension(W)]];
+				printf "general element set up in %o seconds\n", Cputime(t);
+				t:=Cputime();
 				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
+				printf "length restriction found in %o seconds\n", Cputime(t);
 		/*this operation makes the calculation slow so do only as last resort.*/
-				I1:=ideal<RR|Eltseq(uu*uu-uu) cat len_rest>;
-				Groebner(I1);
-				if Dimension(I1) gt 0 then
+				try 
+					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
+			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(3/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
+		//			extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(0/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
+			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(4/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
 					printf "Extra relations found in %o seconds\n",Cputime(t);
+					t:=Cputime();
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
-				else
-					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
-				end if;
+					printf "idempotents found in %o seconds\n", Cputime(t);
+				catch e;
+				end try;
 			elif k ne "4A" then 
 				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
 			end if; 
 			printf "orbit %o %o nice idempotents found\n", count,k;
 			if not #idemps eq 0 then 
-				AA:=ChangeRing(A,BaseField(Parent(idemps[1])));
-				aa:=AA!Eltseq(a);
-				for u in idemps do
-					uu:=AA!Eltseq(u); 
-					Z:=Eigenspace(AdMat(aa+uu),1);
-					potential_axes:=FindAllIdempotents(AA,Z:length:=1,one:=AA!Eltseq(one),form:=form);
-					for y in potential_axes do
-						if HasMonsterFusion(y) and not A!Eltseq(y) in found then
-							Append(~found, A!Eltseq(y));
-						end if;
+				if IsCoercible(A,idemps[1]) then/*sequences are aggregates of homogenous things.*/
+					for u in idemps do
+						Z:=Eigenspace(AdMat(a+u),1);
+						potential_axes:=FindAllIdempotents(A,Z:length:=1,one:=one,form:=form);
+						for y in potential_axes do
+							if HasMonsterFusion(y) and not A!Eltseq(y) in found then
+								Append(~found, A!Eltseq(y));
+							end if;
+						end for;
 					end for;
-				end for; 
+				else
+			       		for u in idemps do	
+						AA:=Parent(idemps[1]);
+						aa:=AA!Eltseq(a);
+						Z:=Eigenspace(AdMat(aa+u),1);
+						potential_axes:=FindAllIdempotents(AA,Z:length:=1,one:=AA!Eltseq(one),form:=form);
+						for y in potential_axes do
+							if HasMonsterFusion(y) and not A!Eltseq(y) in found then
+								Append(~found, A!Eltseq(y));
+							end if;
+						end for;
+					end for;
+				end if; 
 				printf "axes arising from orbit %o, B of type %o found\n",count,k;
 			end if; 
 		end for; 
