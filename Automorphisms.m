@@ -97,7 +97,8 @@ end intrinsic;
 + prescribed length. In such a case it will be advantageous to input a form and identity if A has.                 +
 +                                                                                                                  +
 + ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=IdentityMatrix(BaseField(A),Dimension(A)), one:=A!0, extra_rels:=[]) -> SetIndx
+//intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=IdentityMatrix(BaseField(A),Dimension(A)), one:=A!0, extra_rels:=[]) -> SetIndx
+intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=false, form :=false, one:=false, extra_rels:=[]) -> SetIndx
   {
   Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
   
@@ -107,30 +108,35 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
     one- the identity of A. 
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
   }
- 	
-	require Type(form) eq AlgMatElt: "form must be a matrix";
-	require Nrows(form) eq Ncols(form): "Form must be a square matrix";
-	require Type(one) eq ParAxlAlgElt: " one must be an axial algebra element"; 
+ 	if Type(form) ne BoolElt then	
+		require Type(form) eq AlgMatElt: "form must be a matrix";
+		require Nrows(form) eq Ncols(form): "Form must be a square matrix";
+	end if;
+	if Type(one) ne BoolElt then
+		require Type(one) eq ParAxlAlgElt: " one must be an axial algebra element";
+		require forall{i:i in [1..Dimension(A)]|one*(A.i) eq A.i}: "one must be algebra identity";
+	end if;	
 	n:=Dimension(A);
-	id_mat:=IdentityMatrix(BaseField(A),n);
+	//id_mat:=IdentityMatrix(BaseField(A),n);
 	m:=Dimension(U);
 	F:=BaseField(A);
-	require IsCoercible(F,length): "The length must be a field element";
+	if Type(length) ne BoolElt then
+		require IsCoercible(F,length): "The length must be a field element";
+	end if;
 	R:=PolynomialRing(F,m);/*Set up F[x_1,x_2,...,x_m].*/
 	FF:=FieldOfFractions(R);
 	AF:=ChangeRing(A,FF);
 	v:=&+[R.i*AF!U.i:i in [1..m]];/*Set up $\sum_{i=1}^m x_iv_i. where v_1,v_2,...,v_m is a basis. */
-	if not length eq 0 then
-		if form eq id_mat then
+	if not Type(length) eq BoolElt then
+		if Type(form) eq BoolElt then
 			bool,M:=HasFrobeniusForm(A);
 			if bool eq false then
 				return "fail, the concept of length is not defined";
-			elif bool eq true then
-				form:=M;
 			end if;
+		elif Type(form) ne BoolElt then
+			M:=form;
 		end if;/*at this stage we either have a form or the function has already returned a fail*/
-		M:=form;
-		if one eq A!0 then
+		if Type(one) eq BoolElt then
 			bool,one:=HasIdentityAlg(A);
 			if bool eq false then
 				 len_rest:=FrobFormAtElements(v,v,M)-length;
@@ -138,7 +144,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 				one:=AF!Eltseq(one);
 				len_rest:=FrobFormAtElements(one,v,M)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
 			end if;
-		else 
+		elif Type(one) ne BoolElt then
 			one:=AF!Eltseq(one);		
 			len_rest:=FrobFormAtElements(one,v,M)-length;/* here we use (v,v)=(v,v*1)=(v*v,1)=(v,1)*/ 
 		end if;	
@@ -150,7 +156,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 		else	
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] >; 
 		end if; 
-	elif length eq 0 then
+	elif Type(length) eq BoolElt then
 		if extra_rels eq [] then  
 			I:=ideal<R|Eltseq(v*v-v)>;
 		elif extra_rels ne [] then 
@@ -158,7 +164,10 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 		end if;
 	end if;
 		t:=Cputime();
-		if Dimension(I) le 0 then
+		dim_I:=Dimension(I); 
+		if dim_I lt 0 then
+			return {@ @};
+		elif dim_I eq 0 then 
 			varsize:=VarietySizeOverAlgebraicClosure(I);
 			var:=Variety(I);
 			if #var eq varsize then
@@ -168,7 +177,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 					Append(~idemps,ide);
 				end for;
 				return IndexedSet(idemps);
-			else
+			elif #var lt varsize then
 				//FClos:=AlgebraicClosure(FF);
 				FClos:=AlgebraicClosure(Rationals());
 				varF:=Variety(ChangeRing(I,FClos));
@@ -181,7 +190,7 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=Ident
 				end for;
 				return IndexedSet(idemps), FClos;
 			end if;
-		elif Dimension(I) eq 1 then
+		elif dim_I eq 1 then
 			print "ideal not zero-dimensional";
 			return "fail";
 		end if;
@@ -468,8 +477,8 @@ Additional (optional) inputs are :
 				len_rest:=[FrobFormAtElements(uu,AFF!Eltseq(one),ChangeRing(form,FF))-l];
 				printf "length restriction found in %o seconds\n", Cputime(t);
 		/*this operation makes the calculation slow so do only as last resort.*/
-				try 
-					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
+				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
+				if idemps eq "fail" then
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
 			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(3/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
@@ -479,8 +488,7 @@ Additional (optional) inputs are :
 					t:=Cputime();
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
 					printf "idempotents found in %o seconds\n", Cputime(t);
-				catch e;
-				end try;
+				end if;
 			elif k ne "4A" then 
 				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
 			end if; 
@@ -496,7 +504,7 @@ Additional (optional) inputs are :
 							end if;
 						end for;
 					end for;
-				else
+				elif IsCoercible(A,idemps[1]) eq false then
 			       		for u in idemps do	
 						AA:=Parent(idemps[1]);
 						aa:=AA!Eltseq(a);
