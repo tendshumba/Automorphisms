@@ -94,7 +94,6 @@ end intrinsic;
 
 Some additional data
 
-
 */
 types := ["2A","2B","3A","3C","4A","4B","5A","6A"];
 IdentityLength := AssociativeArray([* <"2A", (2^2*3)/5>,

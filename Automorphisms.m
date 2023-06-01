@@ -10,7 +10,6 @@ declare verbose Axes_verb, 2;
 
 Some additional data
 
-
 */
 types := ["2A","2B","3A","3C","4A","4B","5A","6A"];
 IdentityLength := AssociativeArray([* <"2A", (2^2*3)/5>,
@@ -262,8 +261,10 @@ end intrinsic;
 ========== Functions to find Jordan axes =============
 
 */
+
+// NEED TO COMPLETE
 // First we need the Fixed subalgebra of A
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> Alg
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> DecAlg
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
   }
@@ -276,7 +277,8 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> Alg
   return sub<A | [Eltseq(V!v) : v in Basis(fix)]>;
 end intrinsic;
 
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> Alg
+// NEED TO COMPLETE
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> DecAlg
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
   }
@@ -290,6 +292,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> Alg
   end if;
 end intrinsic;
 
+// NEED TO COMPLETE
 intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   {
   Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
@@ -308,31 +311,41 @@ intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   return {@ b : b in idems | HasMonsterFusionLaw(b) @};
 end intrinsic;
 
+
+
+
+
 // DecomposeToJointEigenspaces 
-intrinsic JointEigenspaceDecomposition(L::SetIndx) -> Assoc
+intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   {
-  Given an indexed set of axes L = \{ a_1, ..., a_n\}, decompose the algebra into joint eigenspaces for these axes.  Returns an associative array where the element A_lm_1(a_1) \cap ... \cap A_lm_n(a_n) has keys give by the set of eigenvalues \{ lm_1, ..., lm_n \}.
+  Given an indexed set of decompositions L = \{ D_1, ..., D_n\}, find the intersections of all these decompositions.  Returns an associative array of where the element D_1(x_1) \cap ... \cap D_n(x_n) has keys give by the set of eigenvalues \{ x_1, ..., x_n \}.
+  If the optional argument non_trivial is true, then we only return the non-trivial subspaces.
   }
+  if IsEmpty(L) then
+    return AssociativeArray();
+  end if;
+  require Type(non_trivial) eq BoolElt: "The optional parameter non_trivial must be a boolean.";
+  // Now L is not empty
+  require forall{ D : D in L | IsAttached(D)}: "The decompositions must be attached to an algebra.";
+  A := Parent(L[1]);
+  require forall{ D : D in L | Parent(D) eq A}: "The decompositions must all be for the same algebra.";
   
-  /*
-	decomps:=AssociativeArray();
-	A:=Parent(lst[1]); // why this must be really axial
-	eigs:=[1,0,1/4,1/32];
-	n:=#lst;
-	dims:=[];
-	ads:=[AdMat(lst[i]):i in [1..n]];
-	Lst:=[[Eigenspace(ads[i],1):i in [1..n]],[Eigenspace(ads[i],0):i in [1..n]],[Eigenspace(ads[i],1/4):i in [1..n]],[Eigenspace(ads[i],1/32):i in [1..n]]];
-	cart:=CartesianPower([1..4],n);
-	for x in cart do 
-		joint_space:=&meet[Lst[x[i]][i]:i in [1..n]];
-		dim:=Dimension(joint_space);
-		if not dim eq 0 then
-			Append(~dims,dim);
-			decomps[[eigs[x[i]]:i  in [1..n]]]:=joint_space;
-		end if; 
-	end for; 
-	return decomps;
-	*/
+  FL := FusionLaw(A);
+  elts := Elements(FL);
+  cart := CartesianPower(elts, #L);
+  
+  decomps := AssociativeArray();
+  for c in cart do
+    U := &meet [ Parts(L[i], c[i]) : i in [1..#L]];
+    
+    // the only case when we don't add is if non-trivial eq true and the dim is 0
+    if non_trivial and Dimension(U) eq 0 then
+      continue c;
+    end if;
+    // otherwise we add the associative array
+    decomps[c] := U;
+  end for;
+  return decomps;
 end intrinsic;
 
 /*
@@ -357,12 +370,73 @@ intrinsic ExtendMapToAlgebra(A::Alg, M::AlgMatElt) -> BoolElt, .
 end intrinsic;
 
 // ExtendAutToMod
-// Do we need the algebra here?? Can't this just be the overalgebra of the domain of phi?
-intrinsic HasInducedMap(M::ModTupFld, phi::Map) -> BoolElt, .
+// How do we give the map phi??? as a map to a matrix?
+intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
   {
-  Given a module M for an algebra A and an automorphism phi of A.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in A and m in M.
+  Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in A and m in M.
   }
+  B := Domain(phi);
+  require ISA(Type(B), DecAlg): "The domain of the map must be a decomposition algebra";
+  require B subset A: "B must be a subalgebra of A.";
+  require Codomain(phi) eq B: "The map must be an automorphism of a subalgebra B of A.";
+  // Could check fo being an automorphism here, but might be costly.
   
+  require BaseRing(M) eq BaseRing(A) and OverDimension(M) eq Dimension(A): "M must be a subspace of A";
+  
+  // Replace once coercion for subalgebras works properly
+  Aalg := Algebra(A);
+  Balg := Algebra(B);
+  function coerce(b)
+    return A!Vector(Aalg!(Balg!Vector(b)));
+  end function;
+  
+  require forall{ <m,b> : m in Basis(M), b in Basis(B) | Vector((A!m)*coerce(b)) in M}: "M must be a submodule for B.";
+  
+  /*
+  We want to find a map psi such that
+  
+  psi(ma) = psi(m)phi(a)
+  
+  Let X = (x_{ij}) be the matrix representing the unknown map psi.
+  P(a) = (p_{ij}) represent phi(a).  Then, we have:
+  
+  m ad_a X = m X P(a)
+  
+  Since this is true for all m in M, we have
+    
+  ad_a X - X P(a) = 0
+  
+  This is a special case of Sylvester's equation AX + XB = C.  We solve this using vectorisation and the Kronecker product.  The vectorisation of a matrix is vec(X) = Rows(X).  Then, we have vec(AXB) = vec(X)(A^t \otimes B), where \otimes is the Kronecker product.  So the above is equivalent to
+  
+  ad_a X I - I X P(a) = 0
+  
+  and hence
+  
+  vec(X) (ad_a^t \otimes I - I \otimes P(a)) = 0
+  
+  So we form the Horizontal join over generators a of
+  
+  ad_a^t \otimes I - I \otimes P(a)
+  
+  and find the nullspace.
+  */
+  F := BaseRing(M);
+  m := Dimension(M);
+  b := Dimension(B);
+  I := IdentityMatrix(F, m);
+  ad_as := [ Matrix( [Coordinates(M, m*B.i) : m in Basis(M)]) : i in [1..b]];
+  
+  M := HorizontalJoin([ KroneckerProduct(Transpose(ad_as[i]), I)
+                        - KroneckerProduct(I, (B.i)@phi) 
+                        : i in [1..b]]);
+  
+  null := NullSpace(M);
+  
+  if Dimension(null) eq 0 then
+		return false,_;
+	else
+		return true, null;
+	end if;
 end intrinsic;
 
 
