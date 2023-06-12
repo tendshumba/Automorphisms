@@ -2223,3 +2223,27 @@ intrinsic IdentifyShapeSubAlg(L::SeqEnum[ParAxlAlgElt])->StgElt
 	end for;
 	return shape;
 end intrinsic;
+
+intrinsic TauMap(A::ParAxlAlg, U::ModTupFld, a::ParAxlAlgElt, T::Tup)->AlgMatElt
+{
+	Given an axial algebra A, a subalgebra U, an axis a in U, and a tuple T with two lists of eigenvalues of ad_a restricted to U, 
+	one being positive and the second being negative in a C_2-grading, produce the tau map t_a as a dim(U)xdim(U) matrix.
+}
+	require U subset A`W: "U must be a subpace of U";
+	m:=Dimension(U);
+	require forall{i:i in [1..m]|forall{j:j in [i..m]| A`W!Eltseq((A!U.i)*(A!U.j)) in U}}: "U must be a subalgebra of A.";
+	require A`W!Eltseq(a) in U: "a must be in U";
+	require Pow(a,2) eq a: "a must be an idempotent.";
+	ad_a:=AdMatInSubAlg(A,U,a);
+	Eigs:=Eigenvalues(ad_a);
+	vals:=[x[1]:x in Eigs];
+	multiplicities:=[x[2]:x in Eigs];
+	require forall{x:x in T[1] cat T[2]|x in vals}: "Every element in the tuple components must be an eigenvalue of a";
+	require &+[x:x in multiplicities] eq m: "a must be semi-simple.";
+	I_m:=IdentityMatrix(BaseField(A),m);
+	eigs:=T[1] cat T[2];
+	P:=(&+[&*[(ad_a-x*I_m)/(T[1][j]-x):x in eigs| x ne T[1][j]]:j in [1..#T[1]]])-(&+[&*[(ad_a-x*I_m)/(T[2][j]-x):x in eigs|x ne T[2][j]]:j in [1..#T[2]]]);
+	/* This matrix produces (v_+)-(v_-), where v_- is the positive part of v, v_- is the negative part of v.*/
+	return P;
+	//return Matrix([Eltseq((ToSmallVec(A,U,A!U.i))*P):i in [1..m]]);
+end intrinsic;
