@@ -478,7 +478,7 @@ Additional (optional) inputs are :
 				printf "length restriction found in %o seconds\n", Cputime(t);
 		/*this operation makes the calculation slow so do only as last resort.*/
 				idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form);
-				if idemps eq "fail" then
+				if not Type(idemps) eq SetIndx then
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
 			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(3/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
@@ -1351,53 +1351,27 @@ Given a subspace V of an axial algebra A, and a vector w in A , together with a 
 
 intrinsic ExtendAutToMod(A::ParAxlAlg, V::ModTupFld, M::ModTupFld, phi::AlgMatElt)-> BoolElt, ModTupFld
 {
-	Given an axial algebra A, a subalgebra V, a module M for V, together with a map or automorphism phi of V, determine if the automorphism induces a map on M. If true, a vector space with degree dim(M)xdim(M) is returned where each basis vector is a concatenation of rows of a matrix representing the induced map.
-} 
+	Given an axial algebra A, a subalgebra V, a module M for V, together with a map or automorphism phi of V, determine if the automorphism induces a map on M.
+	       	If true, a vector space with degree dim(M)xdim(M) is returned where each basis vector is a concatenation of rows of a matrix representing the induced map.
+}
+	require V subset A`W and M subset A`W: "V and M must be subspaces of A.";
+	require forall{<v,w>:v in Basis(V),w in Basis(M)|A`W!Eltseq((A!v)*(A!w)) in M}: "M must be a module for V."; 
 	n:=Dimension(A);
 	k:=Dimension(V);
 	m:=Dimension(M);
 	F:=BaseField(A);
-	V_onM:=[];
-	for i:=1 to k do
-	       Append(~V_onM,AdMatInSubAlg(A,M,A!V.i));
-	end for;
- 	/*we've set up the ad_vi matrices acting on M, where v_i is a basis for V.*/ 
-	sols:=[* *]; /*initialise the solution list.*/
-	B:=ZeroMatrix(F,k*m^2,m^2);
-	count:=1; 
-	for i:=1 to k do/*fixing some v_i.*/
-		for j:=1 to m do /*fixing m_j.*/
-			v_im_j:=V_onM[i][j];/* the entries of v_i*m_j are the values C_1,...,C_m.*/
-			Mat_lhs:=ZeroMatrix(F,m,m*m);
-			for l:=1 to m do /*this is the row number for the matrix lhs.*/
-				for r:=1 to m do
-				Mat_lhs[l][(r-1)*m+l]:=v_im_j[r];	
-				end for;
-			end for;
-			//Mat_lhs; 
-			Mat_rhs:=ZeroMatrix(F,m,m*m);
-			vi_phi:=ToSmallVec(A,V,A!V.i)*phi;/* we get \mu_1,...,\mu_k.*/ 
-			for l:=1 to m do /*row number of the mat, corresponding to the cols of (x_ij).*/
-				for r:=1 to m do 
-					coeff:=&+[vi_phi[t]*V_onM[t][r][l]:t in [1..k]];
-					Mat_rhs[l][(j-1)*m+r]:=coeff;
-				end for;
-			end for;
-			//Mat_rhs;
-			syst:=Mat_lhs-Mat_rhs;
-			for l:=1 to m do
-				B[(count-1)*m+l]:=syst[l];
-			end for;
-			count+:=1; 
-		end for;
-	end for;
-	print "the system of equations has been set up.\n";
-	sol,space:=Solution(Transpose(B),Vector(F,[0*t:t in [1..m*m*k]]));
-	if Dimension(space) eq 0 then
+	I_m:=IdentityMatrix(F,m);
+	V_onM:=[AdMatInSubAlg(A,M,A!V.i):i in [1..k]];
+  /*    V_onM:=[Matrix([Coordinates(M,A`W!(Eltseq((A!V.i)*(A!M.j)))):j in [1..m]]):i in [1..k]]; does the above*/ 
+ 	/*we've set up the ad_vi matrices acting on M, where v_i is a basis for V.*/
+	M:=VerticalJoin([KroneckerProduct(I_m,Matrix([[&+[phi[i][j]*(V_onM[j])[l][t]:j in [1..k]]:l in [1..m]]:t in [1..m]]))
+	-KroneckerProduct(V_onM[i],I_m):i in [1..k]]);/* For a fixed v_i, we have I_m\otimes [\sum_{j=1}^ka_{ij}\xi^j_{lt}]]-[ad_{v_i}]\otimes I_m*/
+	space:=Nullspace(Transpose(M));
+	if Dimension(space) eq 0 then 
 		return false,_;
 	else
-		return true, space;
-	end if; 
+		return true,space;
+	end if;
 end intrinsic;	
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2204,4 +2178,23 @@ intrinsic MiyamotoGroupMat(A::ParAxlAlg)->GrpMat
 }
 
 	return MatrixGroup<Dimension(A),BaseField(A)|MinimumGeneratorsMiyamotoGroup(A)>;
+end intrinsic;
+
+intrinsic FindStructureConstantsSubAlgebra(A:: ParAxlAlg, U::ModTupFld)->SeqEnum[ModTupFld]
+{	
+	Given An axial algebra A and a subalgebra U, find the structure constants c_\{i,j\}^k, where 
+	u_i*u_j=Sum_\{i=1\}^m c_\{i,j\}^ku_k, with u_1, u_2,...,u_m a basis for U. Here m:=dim(U). 
+	The function resturns a sequence of m-long vectors with structure constants corresposing to 
+	product u_i*u_j for j ge i.
+}
+	require U subset A`W: "U must be a subspace of A.";
+	m:=Dimension(U);
+	require forall{i:i in [1..m]|forall{j:j in [i..m]|A`W!Eltseq((A!U.i)*(A!U.j)) in U}}: "U must be a subalgebra";
+	tens:=[];
+	for i:=1 to m do
+       		for j:=i to m do
+			Append(~tens,ToSmallVec(A,U, (A!U.i)*(A!U.j)));
+		end for;
+	end for;
+	return tens;	
 end intrinsic;
