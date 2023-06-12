@@ -361,7 +361,8 @@ end intrinsic;
 intrinsic TauMapMonster(a::ParAxlAlgElt)-> AlgMatElt
 {
 	Find the Tau map of an axis.
-} 
+}	
+	A:= Parent(a);
 	return TauMap(A,A`W,a,<[1,0,1/4],[1/32]>); 
 end intrinsic;
 
@@ -396,6 +397,8 @@ intrinsic SigmaMapMonster(a::ParAxlAlgElt)->AlgMatElt
 Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space. 
 }
 	require IsJordanAxis(a): "Axis is not of Jordan type 1/4."; 
+}
+	A:= Parent(a);
 	return TauMap(A,A`W,a,<[1,0],[1/4]>); 
 end intrinsic;
 
