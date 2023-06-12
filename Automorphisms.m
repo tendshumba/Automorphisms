@@ -360,19 +360,9 @@ end intrinsic;
 
 intrinsic TauMapMonster(a::ParAxlAlgElt)-> AlgMatElt
 {
-Find the Tau map of an axis.
+	Find the Tau map of an axis.
 } 
-	require Pow(a,2) eq a: "The element a is not an idempotent";	
-	require HasMonsterFusion(a): "The element does not satisfy the Monster fusion law."; 
-	A:=Parent(a);
-	Q:=Rationals();
-	W:=VectorSpace(Rationals(),Dimension(A));
-	P1:=ProjMat(a,Q!1);
-	P0:=ProjMat(a,Q!0);
-	P4:=ProjMat(a,1/4);
-	P32:=ProjMat(a,1/32);
-	P:=P1+P0+P4;
-	return Matrix(Rationals(),[Eltseq((W!Eltseq(A.i))*P-(W!Eltseq(A.i))*P32): i in [1..Dimension(A)]]);
+	return TauMap(A,A`W,a,<[1,0,1/4],[1/32]>); 
 end intrinsic;
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -406,14 +396,7 @@ intrinsic SigmaMapMonster(a::ParAxlAlgElt)->AlgMatElt
 Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space. 
 }
 	require IsJordanAxis(a): "Axis is not of Jordan type 1/4."; 
-	Q:=Rationals(); 
-	A:=Parent(a);
-	W:=VectorSpace(Rationals(),Dimension(A));
-	P1:=ProjMat(a,Q!1);
-	P0:=ProjMat(a,Q!0);
-	P4:=ProjMat(a,1/4);
-	P:=P1+P0; 
-	return Matrix(Rationals(),[Eltseq((W!Eltseq(A.i))*P-(W!Eltseq(A.i))*P4): i in [1..Dimension(A)]]);
+	return TauMap(A,A`W,a,<[1,0],[1/4]>); 
 end intrinsic;
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
