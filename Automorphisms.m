@@ -97,7 +97,6 @@ end intrinsic;
 + prescribed length. In such a case it will be advantageous to input a form and identity if A has.                 +
 +                                                                                                                  +
 + ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-//intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=0, form :=IdentityMatrix(BaseField(A),Dimension(A)), one:=A!0, extra_rels:=[]) -> SetIndx
 intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=false, form :=false, one:=false, extra_rels:=[]) -> SetIndx
   {
   Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
@@ -152,7 +151,6 @@ intrinsic FindAllIdempotents(A::ParAxlAlg, U::ModTupFld: length:=false, form :=f
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest]>;
 		elif extra_rels ne [] and Dimension(ideal<R|Eltseq(v*v-v) cat [len_rest]>) gt 0 then  
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] cat extra_rels>;
-
 		else	
 			I:=ideal<R|Eltseq(v*v-v) cat [len_rest] >; 
 		end if; 
@@ -374,7 +372,7 @@ end intrinsic;
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 intrinsic ProjMat(a::ParAxlAlgElt, ev::FldRatElt)->AlgMatElt
 {
-Given an axis a and an eigenvalue ev of ad_a, find the projection matrix to A_\{ev\}(a).
+	Given an axis a and an eigenvalue ev of ad_a, find the projection matrix to A_\{ev\}(a).
 }
 	require Pow(a,2) eq a: "The element a is not idempotent";
 	require ev in [Rationals()!1,Rationals()!0,1/4,1/32]: "The given eigenvalue is not in the Monster Fusion eigenvalues."; 
@@ -393,11 +391,9 @@ end intrinsic;
 
 intrinsic SigmaMapMonster(a::ParAxlAlgElt)->AlgMatElt
 {
-
-Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space. 
+	Given an axis a which is known to be J(1/4), find the sigma map which negates the 1/4-space. 
 }
 	require IsJordanAxis(a): "Axis is not of Jordan type 1/4."; 
-}
 	A:= Parent(a);
 	return TauMap(A,A`W,a,<[1,0],[1/4]>); 
 end intrinsic;
@@ -2224,7 +2220,7 @@ intrinsic TauMap(A::ParAxlAlg, U::ModTupFld, a::ParAxlAlgElt, T::Tup)->AlgMatElt
 	Eigs:=Eigenvalues(ad_a);
 	vals:=[x[1]:x in Eigs];
 	multiplicities:=[x[2]:x in Eigs];
-	require forall{x:x in T[1] cat T[2]|x in vals}: "Every element in the tuple components must be an eigenvalue of a";
+	require forall{x:x in vals|x in T[1] cat T[2]}: "Every eigenvalue of a must be an element in the tuple components ";
 	require &+[x:x in multiplicities] eq m: "a must be semi-simple.";
 	I_m:=IdentityMatrix(BaseField(A),m);
 	eigs:=T[1] cat T[2];
