@@ -235,7 +235,6 @@ require n ge 0: " n must be a nonnegative integer.";
  		bool,id:=HasIdentityAlg(Parent(u));
 		if bool eq true then  
 			pow:=id;
-			pow:=id;
 			return pow;
 		else
 			print("Error, the given power cannot be computed");
@@ -463,9 +462,6 @@ Additional (optional) inputs are :
 				if not Type(idemps) eq SetIndx then
 					t:=Cputime();
 					extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(31/32)*IdentityMatrix(BaseField(A),Dimension(W32)));
-			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(3/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
-		//			extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(0/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
-			//		extra:=Determinant(AdMatInSubAlg(AFF,W32,uu)-(4/4)*IdentityMatrix(BaseField(A),Dimension(W32)));
 					printf "Extra relations found in %o seconds\n",Cputime(t);
 					t:=Cputime();
 					idemps:=FindAllIdempotents(A,W:length:=l,one:=one,form:=form,extra_rels:=[extra]);
@@ -704,7 +700,11 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
 	dim:=Dimension(A);
 	closed:=0;
 	F:=BaseField(A);
+	sub_alg_mode:="off";
 	lst:=[A`W!Eltseq(input[i]):i in [1..#input]];
+	if input eq images then
+		sub_alg_mode:="on";
+	end if;
 	ims:=images;
 	sub:=sub<A`W|lst>;
 	m_s:=[1^i:i in [1..#lst]];
@@ -720,11 +720,13 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
 					sub+:=sub<A`W|w>;
 					Append(~m_s,m_s[i]+m_s[j]);
 					Append(~structs,Sprintf("(%o)(%o)",structs[i],structs[j]));
-					Append(~ims,ims[i]*ims[j]);
+					if not sub_alg_mode eq "on" then
+						Append(~ims,ims[i]*ims[j]);
+					end if;
 				end if;
 			end for;
 		end for;
-		if #lst eq current[2] then
+		if #lst eq current[2] or #lst eq dim then
 			closed+:=1;
 			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
 		else
@@ -736,6 +738,9 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
 	//return sub,structs,m_s;
 	if #lst lt dim then
 		return false,sub;
+	end if;
+	if sub_alg_mode eq "on" then
+		return MatrixAlgebra(F,dim)!1;
 	end if;
 	bas_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
 	phi:=Matrix(F,[Eltseq(Solution(bas_mat,A`W!Eltseq(ims[i]))):i in [1..#ims]]);
