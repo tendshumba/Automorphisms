@@ -264,7 +264,7 @@ end intrinsic;
 
 // NEED TO COMPLETE
 // First we need the Fixed subalgebra of A
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> DecAlg
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
   }
@@ -274,7 +274,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> DecAlg
   V := GModule(G);
   fix := Fix(V);
   
-  return sub<A | [Eltseq(V!v) : v in Basis(fix)]>;
+  return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
 end intrinsic;
 
 // NEED TO COMPLETE
@@ -308,7 +308,14 @@ intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   idems := FindAllIdempotents(A, U);
   
   // Since b is in the fixed subalgebra, it has trivial 1/32 part, so we can just check for Monster Fusion law.
-  return {@ b : b in idems | HasMonsterFusionLaw(b) @};
+  
+  // We also remove the zero and id from the list
+  so, id := HasOne(A);
+  if not so then
+    id := A!0;
+  end if;
+  
+  return {@ b : b in idems | HasMonsterFusionLaw(b) @} diff {@ A!0, id@};
 end intrinsic;
 
 
@@ -327,8 +334,8 @@ intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   require Type(non_trivial) eq BoolElt: "The optional parameter non_trivial must be a boolean.";
   // Now L is not empty
   require forall{ D : D in L | IsAttached(D)}: "The decompositions must be attached to an algebra.";
-  A := Parent(L[1]);
-  require forall{ D : D in L | Parent(D) eq A}: "The decompositions must all be for the same algebra.";
+  A := Algebra(L[1]);
+  require forall{ D : D in L | Algebra(D) eq A}: "The decompositions must all be for the same algebra.";
   
   FL := FusionLaw(A);
   elts := Elements(FL);
@@ -336,7 +343,7 @@ intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   
   decomps := AssociativeArray();
   for c in cart do
-    U := &meet [ Parts(L[i], c[i]) : i in [1..#L]];
+    U := &meet [ Part(L[i], c[i]) : i in [1..#L]];
     
     // the only case when we don't add is if non-trivial eq true and the dim is 0
     if non_trivial and Dimension(U) eq 0 then
@@ -424,11 +431,11 @@ intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
   m := Dimension(M);
   b := Dimension(B);
   I := IdentityMatrix(F, m);
-  ad_as := [ Matrix( [Coordinates(M, m*B.i) : m in Basis(M)]) : i in [1..b]];
+  ad_as := [ Matrix( [Coordinates(M, Vector((A!m)*coerce(B.i))) : m in Basis(M)]) : i in [1..b]];
+  phis := [ Matrix( [Coordinates(M, Vector((A!m)*coerce(B.i@phi))) : m in Basis(M)]) : i in [1..b]];
   
-  M := HorizontalJoin([ KroneckerProduct(Transpose(ad_as[i]), I)
-                        - KroneckerProduct(I, (B.i)@phi) 
-                        : i in [1..b]]);
+  M := HorizontalJoin([ KroneckerProduct(Transpose(ad_as[i]), I) - KroneckerProduct(I, phis[i]) 
+                           : i in [1..b]]);
   
   null := NullSpace(M);
   
@@ -452,6 +459,15 @@ intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> Bo
   {
   Check if a axial algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
   }
+  Aalg := Algebra(Parent(u));
+  
+  return HasMonsterFusionLaw(Aalg!Eltseq(u): fusion_values := fusion_values);
+end intrinsic;
+
+intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> BoolElt
+  {
+  Check if an algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
+  }
   require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
   
   if not IsIdempotent(u) then
@@ -463,7 +479,7 @@ intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> Bo
   fusion_set := {@ F | 1, 0 @} join fusion_values;
   
   A := Parent(u);
-  adu := AdjointMatrix(u);
+  adu := Matrix([A.i*u : i in [1..Dimension(A)]]);
   
   eigs := {@ t[1] : t in Eigenvalues(adu) @};
   
