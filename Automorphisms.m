@@ -262,7 +262,7 @@ end intrinsic;
 
 */
 
-// NEED TO COMPLETE
+// NEED TO COMPLETE - ISN'T IT COMPLETE??
 // First we need the Fixed subalgebra of A
 intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   {
@@ -277,7 +277,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
 end intrinsic;
 
-// NEED TO COMPLETE
+// NEED TO COMPLETE - ISN'T IT COMPLETE??
 intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> DecAlg
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
@@ -292,7 +292,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> DecAlg
   end if;
 end intrinsic;
 
-// NEED TO COMPLETE
+// NEED TO COMPLETE - ISN'T IT COMPLETE??
 intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   {
   Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
@@ -360,7 +360,7 @@ end intrinsic;
 Functions to extend an automorphism of a subalgebra to an automorphism of the whole algebra.
 
 */
-// ExtendMapToAut
+// ExtendMapToAlgebra
 // Do we need A?? Can't this just be the overalgebra of the domain of phi?
 intrinsic ExtendMapToAlgebra(A::Alg, phi::Map) -> BoolElt, .
   {
@@ -380,19 +380,19 @@ end intrinsic;
 // How do we give the map phi??? as a map to a matrix?
 intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
   {
-  Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in A and m in M.
+  Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
   }
   B := Domain(phi);
-  require ISA(Type(B), DecAlg): "The domain of the map must be a decomposition algebra";
-  require B subset A: "B must be a subalgebra of A.";
+  require ISA(Type(B), AlgGen): "The domain of the map must be a decomposition algebra";
+  require B subset Algebra(A): "B must be a subalgebra of A.";
   require Codomain(phi) eq B: "The map must be an automorphism of a subalgebra B of A.";
-  // Could check fo being an automorphism here, but might be costly.
+  // Could check for being an automorphism here, but might be costly.
   
   require BaseRing(M) eq BaseRing(A) and OverDimension(M) eq Dimension(A): "M must be a subspace of A";
   
   // Replace once coercion for subalgebras works properly
   Aalg := Algebra(A);
-  Balg := Algebra(B);
+  Balg := B;
   function coerce(b)
     return A!Vector(Aalg!(Balg!Vector(b)));
   end function;
@@ -455,6 +455,7 @@ end intrinsic;
 ============ Checking axes and fusion laws ==================
 
 */
+// Monster type
 intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> BoolElt
   {
   Check if a axial algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
@@ -505,7 +506,71 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   bt := fusion_set[4];
 
   // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  // NB don't need to check 1*a
   fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ]; 
+
+  for t in fus_law do
+    a,b,S := Explode(t);
+    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | Vector(p) in &+[espace[s] : s in S]} then
+      return false;
+    end if;
+  end for;
+
+  return true;
+end intrinsic;
+
+intrinsic HasJordanFusionLaw(u::AxlAlgElt: fusion_value := 1/4)-> BoolElt
+  {
+  Check if a axial algebra element u satisfies the Jordan fusion law.  Defaults to J(1/4) fusion law.
+  }
+  Aalg := Algebra(Parent(u));
+  
+  return HasJordanFusionLaw(Aalg!Eltseq(u): fusion_value := fusion_value);
+end intrinsic;
+
+intrinsic HasJordanFusionLaw(u::AlgGenElt: fusion_value := 1/4)-> BoolElt
+  {
+  Check if an algebra element u satisfies the Jordan fusion law.  Defaults to J(1/4) fusion law.
+  }
+  
+  require fusion_value notin {0,1}: "The fusion_value cannot be 0, or 1";
+  
+  if not IsIdempotent(u) then
+    vprint Axes_verb, 1: "Element is not an idempotent";
+    return false;
+  end if;
+  
+  F := Parent(fusion_value);
+  fusion_set := {@ F | 1, 0, fusion_value @};
+  
+  A := Parent(u);
+  adu := Matrix([A.i*u : i in [1..Dimension(A)]]);
+  
+  eigs := {@ t[1] : t in Eigenvalues(adu) @};
+  
+  // Check we don't have extra eigenvalues
+  if exists(ev){ ev : ev in eigs | ev notin fusion_set } then
+    vprintf Axes_verb, 1: "Eigenvalue %o not in %o\n", ev, fusion_set;
+    return false;
+  end if;
+  
+  // Find the eigenspaces
+  espace := AssociativeArray([* <ev, Eigenspace(adu, ev)> : ev in fusion_set *]);
+  
+  // The multiplicities attached are sometimes not reliable
+  if Dimension(A) ne &+[ Dimension(espace[k]) : k in fusion_set] then
+    vprint Axes_verb, 1: "The element is not semisimple.";
+    return false;
+  end if;
+  
+  // Check the fusion law
+  ebas := AssociativeArray([* <ev, Basis(espace[ev])> : ev in fusion_set *]);
+
+  eta := fusion_set[3];
+
+  // these are the tuples <a,b,S> representing a*b = S in the fusion law
+  // NB don't need to check 1*a
+  fus_law := [ <0, 0, {0}>, <0, eta, {eta}>, <eta, eta, {1,0}> ]; 
 
   for t in fus_law do
     a,b,S := Explode(t);
