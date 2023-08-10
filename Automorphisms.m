@@ -355,6 +355,35 @@ intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   return decomps;
 end intrinsic;
 
+
+
+/*
+
+Given a basis of a subspace and some extra vectors sieve the extra vectors to form a basis of the space spanned by all vectors.  Returns the indices of the required extra vectors for the basis.
+
+*/
+function CompleteToBasis(bas, extra)
+  // note from before suggest working in a quotient is quicker.
+  V := Universe(bas);
+  U := sub<V | bas >;
+  Q, quo := quo<V | bas>;
+  
+  extra_Q := extra@quo;
+  dim := Dimension(sub<Q | extra_Q>);
+  extra_bas := [];
+  index := [];
+  
+  i := 0;
+  while #extra_bas ne dim do
+    i +:= 1;
+    if IsIndependent(extra_bas cat [extra_Q[i]]) then
+      Append(~extra_bas, extra_Q[i]);
+      Append(~index, i);
+    end if;
+  end while;
+  
+  return index;
+end function;
 /*
 
 Functions to extend an automorphism of a subalgebra to an automorphism of the whole algebra.
@@ -362,11 +391,73 @@ Functions to extend an automorphism of a subalgebra to an automorphism of the wh
 */
 // ExtendMapToAlgebra
 // Do we need A?? Can't this just be the overalgebra of the domain of phi?
-intrinsic ExtendMapToAlgebra(A::Alg, phi::Map) -> BoolElt, .
+intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map) -> BoolElt, .
   {
-  Given a map phi on a subspace of A, extend this multiplicatively as far as possible.  We return true and the map if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
+  Given a bijective map phi:B -> A on a subspace B of A, try to extend this to an automorphism of the algebra, by using the algebra multiplication.  We return true and the map if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
   }
+  B := Domain(phi);
+  require ISA(Type(B), ModTupFld): "The domain of the map must be a subspace of A";
+  require B subset VectorSpace(A): "B must be a subspace of A.";
+  require Codomain(phi) eq VectorSpace(A): "The image of the map must be in A.";
+  require Dimension(Image(phi)) eq Dimension(B): "The map must be bijective.";
   
+  // should check for any contradiction to being an automorphism in phi already.
+  // Maybe 
+  
+  V := VectorSpace(A);
+  old_bas := [V|];
+  new_bas := Basis(B);
+  old_im := [V|];
+  new_im := [ phi(b) : b in new_bas];
+  psi := phi;
+  
+  closed := false;
+  
+  // we will extend our map phi to psi in stages
+  // at each stage, we will take a,b in the domain of the current map psi
+  // define psi(ab) to be psi(a)*psi(b)
+  // if ab is in the domain of psi already, then this must agree, or we have a contradiction.
+  // otherwise this terminates when the domain is closed.
+  while not closed do
+    // we only need to take products we haven't seen before
+    // ie products old_bas with new_bas and new_bas with new_bas
+    map_dom := Domain(psi);
+    
+    newprods := [];
+    im_newprods := [];
+    
+    for i -> a in (old_bas cat new_bas), j -> b in new_bas do
+      ab := Vector(A!a*A!b);
+      im_ab := Vector(A!((old_im cat new_im)[i])*A!new_im[j]);
+      
+      if ab in map_dom and ab@psi ne im_ab then
+        print("The map cannot be extended to an automorphism.");
+        return false, _;
+      end if;
+      // hence it is ok.
+      
+      Append(~newprods, ab);
+      Append(~im_newprods, im_ab);
+    end for;
+    
+    // Now need to pick a basis for the new space of new products
+    old_bas cat:= new_bas;
+    old_im cat:= new_im;
+    index := CompleteToBasis(old_bas, newprods);
+    new_bas := newprods[index];
+    new_im := im_newprods[index];
+    
+    bas := old_bas cat new_bas;
+    im := old_im cat new_im;
+    assert #bas eq #im;
+    
+    psi := hom<sub<V|bas> -> V | [<bas[i], im[i]> : i in [1..#bas]]>;
+    
+    // if there no new products, then the domain is closed.
+    closed := #index eq 0;
+  end while;
+  
+  return true, psi;
 end intrinsic;
 
 intrinsic ExtendMapToAlgebra(A::Alg, M::AlgMatElt) -> BoolElt, .
@@ -380,10 +471,10 @@ end intrinsic;
 // How do we give the map phi??? as a map to a matrix?
 intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
   {
-  Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
+  Suppose phi is an automorphism of a (AlgGen) subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
   }
   B := Domain(phi);
-  require ISA(Type(B), AlgGen): "The domain of the map must be a decomposition algebra";
+  require ISA(Type(B), AlgGen): "The domain of the map must be an algebra";
   require B subset Algebra(A): "B must be a subalgebra of A.";
   require Codomain(phi) eq B: "The map must be an automorphism of a subalgebra B of A.";
   // Could check for being an automorphism here, but might be costly.
