@@ -155,12 +155,13 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
     require forall{ x : x in extra_rels | IsCoercible(FF, x)}: "The extra relations do not lie in the correct field";
   end if;
   
-	// FF_to_P := hom<FF->P | [ P.i : i in [1..m]]>;
-	AF := ChangeRing(A, FF);
+	// We work in the algebra as changing ring is quicker here.
+  Aalg := Algebra(A);
+	AalgF := ChangeRing(Aalg, FF);
 	
 	// We set up a general element x
 	bas := Basis(U);
-	x := &+[ P.i*AF!Eltseq(bas[i]) : i in [1..m]];
+  x := &+[ P.i*AalgF!Eltseq(bas[i]) : i in [1..m]];
 	
 	// We add any extra relations coming from a length restriction
 	if Type(length) ne BoolElt then
@@ -168,7 +169,11 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
 	  so, one := HasOne(A);
 	  assert so;
 	  
-	  extra_rels cat:= [ Frobenius(x, AF!Eltseq(one)) - length];
+    so, frob := HasFrobeniusForm(A);
+	  assert so;
+	  frob := ChangeRing(frob, FF);
+	  // Since we assume that x is a idempotent, (x,x) = (x,x*id) = (x^2, id) = (x, id)
+	  extra_rels cat:= [ InnerProduct(x*frob, AalgF!Eltseq(one)) - length];
 	end if;
   
   // form the ideal
@@ -390,7 +395,6 @@ Functions to extend an automorphism of a subalgebra to an automorphism of the wh
 
 */
 // ExtendMapToAlgebra
-// Do we need A?? Can't this just be the overalgebra of the domain of phi?
 intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map) -> BoolElt, .
   {
   Given a bijective map phi:B -> A on a subspace B of A, try to extend this to an automorphism of the algebra, by using the algebra multiplication.  We return true and the map if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
@@ -460,6 +464,7 @@ intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map) -> BoolElt, .
   return true, psi;
 end intrinsic;
 
+// Do We need this version??
 intrinsic ExtendMapToAlgebra(A::Alg, M::AlgMatElt) -> BoolElt, .
   {
   Given a matrix M on a subspace of A, extend this multiplicatively as far as possible.  We return true and the matrix if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
