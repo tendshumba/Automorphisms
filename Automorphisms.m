@@ -756,7 +756,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
 	end if;;
 
 	if sub_alg_mode eq "on" then
-		return MatrixAlgebra(F,dim)!1;
+		return true, MatrixAlgebra(F,dim)!1;
 	end if;
 	bas_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
 	phi:=Matrix(F,[Eltseq(Solution(bas_mat,A`W!Eltseq(ims[i]))):i in [1..#ims]]);
