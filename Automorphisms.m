@@ -279,63 +279,83 @@ Function to evaluate a polynomial f at ad_a and then applied to an alegbra eleme
 	return &+[coefs[i]*AdPowerAtElement(a,i-1,v):i in [1..#coefs]];
 end intrinsic;
 
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Function to check if an idempotent satisfies the Monster M(alpha,beta) fusion law. 						          +
++           	                                                                                                                          +
++ We implement ideas from Hall, Rehren and Shpectorov's 'Universal axial algebras and a theorem of Sakuma.                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
 /*check if the eigenvalues are in eigens, if so, check if dimensions add up.*/
-intrinsic HasMonsterFusion(u::ParAxlAlgElt)-> BoolElt
+intrinsic HasMonsterFusion(u::ParAxlAlgElt:arbitrary_parameters:=false)-> BoolElt
 {
-Check if the axial algebra element u satisfies the Monster M(1/4,1/32) fusion law.
+	Check if the algebra element u satisfies the Monster M(alpha,beta) fusion law.
+	The switch for arbitrary alpha and beta is off by default, when we assume (alpha,beta)
+	is (1/4,1/32). Parameters:
+	-arbitrary_parameters a tuple <alpha,beta>, set to false by default. 
+}
+	require u*u eq u: "u must be an idempotent"; 
+	A:=Parent(u);
+	bas:=Basis(A);
+	n:=#bas;
+	F:=BaseField(A);
+	zero:=Vector(A!0);
+	if Type(arbitrary_parameters) eq BoolElt then
+		alpha:=1/4;
+		beta:=1/32;
+	else
+	require Type(arbitrary_parameters) eq Tup and arbitrary_parameters[1] in F and arbitrary_parameters[2] in F: 
+		"The parameters must be in a tuple and the values alpha and beta must lie in the base field of underlying algebra.";
+		alpha:=arbitrary_parameters[1];
+		beta:=arbitrary_parameters[2];
+		require <alpha,beta> notin {<0,1>,<1,0>} and alpha ne beta :"alpha and beta must be distinct and different from 1 and 0.";
+	end if;
+	eigens:=[1,0,alpha,beta];
+	I_n:=IdentityMatrix(F,n);
+	ad:=AdMat(u);
+	eigs:=IndexedSet(Eigenvalues(ad));
+	if exists(ev){eigs[i][1]:i in [1..#eigs]|not (eigs[i][1]  in eigens)} then
+		printf("Eigenvalue %o not in [1,0,alpha,beta]\n"),ev;
+		return false; 
+	elif &+[eigs[i][2]:i in [1..#eigs]] ne #bas then /*semisimplicity check.*/
+		print("Dimensions do not add up\n");
+		return false;
+ 	end if;
+ 	/*At this point all failures with regards to the correct eigenvalues and simplicity 
+ 	have been tested.*/ 
+ 	E0:=[A!Eltseq(u):u in Basis(Eigenspace(ad,0))];
+ 	E1:=[A!Eltseq(u):u in Basis(Eigenspace(ad,1))];
+ 	E4:=[A!Eltseq(u):u in Basis(Eigenspace(ad,alpha))];
+ 	E32:=[A!Eltseq(u):u in Basis(Eigenspace(ad,beta))];
+	/*We set up the matrices f_{mu,\lamba} and apply Lemma 5.4 of the universal axial algebra paper.*/
+	P1:=ad-I_n;/*we evaluate t-mu_i for mu_i different from 1.*/
+	P2:=ad-alpha*I_n;
+	P3:=ad-beta*I_n;
+ 	/*1* everything else, not necessary, obvious by definition of eigenvalues .*/
+ 	/*for a space E_i, we cut the number of multiplication in E_i using commutativity of axial alegebras.*/ 
+	/*we now check multiplication by 0 here.*/
+	bools:=[];
+	bool2:=[forall{x:x in {y:y in CartesianPower([1..#E0],2)|y[1] le y[2]}|Vector((E0[x[1]]*E0[x[2]]))*ad eq zero },
+	forall{<i,j>:i in [1..#E4],j in [1..#E0]|Vector(E4[i]*E0[j])*P2 eq zero},   
+	forall{<i,j> :i in [1..#E32],j in [1..#E0]|Vector((E32[i]*E0[j]))*P3 eq zero}];
+	Append(~bools,forall{bool:bool in bool2|bool eq true});
 
-} 
- bas:=Basis(Parent(u));
- eigens:=[1,0,1/4,1/32];
- P<s>:=PolynomialRing(Rationals(),1);
- ad:=AdMat(u);
-  eigs:=IndexedSet(Eigenvalues(ad));
- if exists(ev){eigs[i][1]:i in [1..#eigs]|not (eigs[i][1]  in eigens)} then
-  printf("Eigenvalue %o not in [1,0,1/4,1/32]\n"),ev;
-  return false; 
- elif &+[eigs[i][2]:i in [1..#eigs]] ne #bas then 
- print("Dimensions do not add up\n");
-  return false;
- else 
-  E0:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,0))];/*one hopes all eigenvalues are involved,
- if not, then a check has to be made.*/
-  E1:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1))];
-  E4:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1/4))];
-  E32:=[Parent(u)!Eltseq(u):u in Basis(Eigenspace(ad,1/32))];
-  /*1* everything else, not necessary, but we do it .*/
-  bools:=[];
-  bool1:=[
-  forall{PolynomialAtAdAtElement(s-1,u,E1[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E1],j in [1..#E1]},
-  forall{u*(E0[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E0],j in [1..#E1]},
-  forall{PolynomialAtAdAtElement(s-1/4,u,E4[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E1]},
-  forall{PolynomialAtAdAtElement(s-1/32,u,E32[i]*E1[j]) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E1]}];
-  Append(~bools,forall{bool:bool in bool1|bool eq true});
-
-  /*we now check multiplication by 0 here.*/
-  bool2:=[forall{PolynomialAtAdAtElement(s,u,(E0[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E0],j in [1..#E0]},
-  forall{PolynomialAtAdAtElement(s-1/4,u,(E4[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E0]},   
-  forall{PolynomialAtAdAtElement(s-1/32,u,(E32[i]*E0[j])) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E0]}];
-  Append(~bools,forall{bool:bool in bool2|bool eq true});
-
- /*we check multiplication by 1/4 now.*/
-  bool3:=[
-  forall{PolynomialAtAdAtElement((s-1)*s,u,E4[i]*E4[j]) eq Zero(Parent(u)) :i in [1..#E4],j in [1..#E4]},
-  forall{PolynomialAtAdAtElement(s-(1/32),u,E32[i]*E4[j]) eq Zero(Parent(u)) :i in [1..#E32],j in [1..#E4]}];
-  Append(~bools,forall{bool:bool in bool3|bool eq true});
-
- /*finally multipliction by 1/32.*/
- bool4:=[
- forall{PolynomialAtAdAtElement((s-1)*(s-1/4)*s,u,(E32[i]*E32[j])) eq
- Zero(Parent(u)) :i in [1..#E32],j in [1..#E32]}];
- Append(~bools,forall{bool:bool in bool4|bool eq true});
- if false in bools then 
-  return false;
- else 
-  return true;
- end if;
-end if;
+	/*we check multiplication by alpha now.*/
+	bool3:=[
+	forall{x:x in {y:y in CartesianPower([1..#E4],2)|y[1] le y[2]}|Vector((E4[x[1]]*E4[x[2]]))*(P1*ad)  eq zero },
+	forall{<i,j>:i in [1..#E32],j in [1..#E4]|Vector((E32[i]*E4[j]))*P3 eq zero }];
+	Append(~bools,forall{bool:bool in bool3|bool eq true});
+	/*multiplication is commutative so if <x,y> in EixEi, we need not check <y,x>*/
+	/*finally multipliction by beta.*/
+	bool4:=[
+	forall{x:x in {y:y in CartesianPower([1..#E32],2)|y[1] le y[2]}|Vector((E32[x[1]]*E32[x[2]]))*(P1*P2*ad) eq zero}];
+	Append(~bools,forall{bool:bool in bool4|bool eq true});
+	if false in bools then
+		return false;
+	else 
+		return true;
+	end if;
 end intrinsic;
- 
 /*Routine for checking if a given idempotent is a Jordan axis.*/
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -730,7 +750,6 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
                 if #lst eq current[2] or #lst eq dim then
 			closed+:=1;
 			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
-
 		else
 			/*update new and current.*/
 			new:=[current[2]+1,#lst];
@@ -743,18 +762,17 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[ParAxlAlgElt],images::SeqEnum[ParAxl
                         change_of_basis:=Matrix([Coordinates(sub,lst[i]):i in [1..#lst]]);
                         V_ugly:=VectorSpaceWithBasis(lst);
                         current_map:=change_of_basis^(-1)*Matrix([Coordinates(V_ugly,Vector(ims[i])):i in [1..#lst]])*change_of_basis;
-                lst:=bas;
-                V:=sub<A`W|bas>;
-                Bas_V:=Matrix([Eltseq(bas[i]):i in [1..#lst]]);
-                ims:=[(Solution(Bas_V,Vector(ims[i]))*current_map):i in [1..#ims]];
-                ims:=[A!(&+[ims[i][j]*bas[j]:j in [1..#bas]]):i in [1..#ims]];
+                	lst:=bas;
+                	V:=sub<A`W|bas>;
+                	Bas_V:=Matrix([Eltseq(bas[i]):i in [1..#lst]]);
+                	ims:=[(Solution(Bas_V,Vector(ims[i]))*current_map):i in [1..#ims]];
+                	ims:=[A!(&+[ims[i][j]*bas[j]:j in [1..#bas]]):i in [1..#ims]];
 		end if;
 	end while;
 	//return sub,structs,m_s;
 	if #lst lt dim then
 		return false,sub;
 	end if;;
-
 	if sub_alg_mode eq "on" then
 		return true, MatrixAlgebra(F,dim)!1;
 	end if;
@@ -972,7 +990,7 @@ end intrinsic;
 + Given an axial algebra A, find the Jordan 1/4 axes in A.                                                                  +
 +                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
-
+/*must also add the group, or  a list of generators.*/
 intrinsic JordanAxes(A::ParAxlAlg :one:=A!0,form:=IdentityMatrix(BaseField(A), Dimension(A)))->SetIndx
 {
 	Givem an axial algebra, find all the Jordan Axes in A. Optional inputs are :
@@ -996,12 +1014,27 @@ intrinsic JordanAxes(A::ParAxlAlg :one:=A!0,form:=IdentityMatrix(BaseField(A), D
 		require Type(form) eq AlgMatElt: "The form must be a matrix";
 		require Nrows(form) eq Ncols(form) and Nrows(form) eq Dimension(A): "The form must be a square matrix";
 		require IsSymmetric(form): "A Frobenius form is necessarily symmetric";	
-		idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):length:=1,one:=one, form:=form);
+//idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):length:=1,one:=one, form:=form);
+idemps:=FindAllIdempotents(A,FindFixedSubAlgebra(A):length:=1,one:=one, form:=form);
 	end if;
 	if #idemps eq 0 then 
 		return idemps;
-	else 
-		return{@x:x in idemps| HasMonsterFusion(x) @};
+	else
+	     jords:={@ @};
+             AA:=Parent(idemps[1]);
+              for x in idemps diff {@AA!Eltseq(one), AA!0@} do /*clearly 1 is fixed by all automorphisms.*/
+	        if IsCoercible(A,x) then
+	            if HasMonsterFusion( A!Eltseq(x)) then
+	                Include(~jords,x);
+                    end if;
+		 else
+		       if HasMonsterFusion(x) then
+		          Include(~jords,x);
+                       end if;
+                end if;
+            end for;
+//return{@x:x in idemps| HasMonsterFusion(x) @};
+           return jords;
 	end if;
 end intrinsic;
 
