@@ -520,9 +520,11 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
 	booleans:=[];
 	/* we do not need to check 1*lm_i for all lm_i.*/ 
 	for law in fusion_law[[5..#fusion_law]] do
-		bool:=(&*[parts[law[1][i]]:i in [1,2]])*(&*[ad_u-y*I_n:y in law[2]]) eq zero;
-		printf(" law %o done\n"),law;
-		Append(~booleans,bool);
+		if forall{i:i in [1,2]|law[1][i] in Keys(parts)} then/*loop necessary should one value be missing, eg in J(1/4) case.*/
+			bool:=(&*[parts[law[1][i]]:i in [1,2]])*(&*[ad_u-y*I_n:y in law[2]]) eq zero;
+			printf(" law %o done\n"),law;
+			Append(~booleans,bool);
+		end if;
 	end for;
 	if exists{bool:bool in booleans|bool eq false} then
 		return false;
@@ -594,7 +596,8 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 			idemps:=FindAllIdempotents(B,VectorSpace(B):one:=one);
 		end if;
 	end if;
-	form_U:=RestrictedForm(form,U);
+	//form_U:=RestrictedForm(form,U);
+        form_U:=form;
 	if Type(length) eq BoolElt then
 		idemps:=FindAllIdempotents(B,VectorSpace(B));
 	else
