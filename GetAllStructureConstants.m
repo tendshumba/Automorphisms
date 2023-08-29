@@ -363,6 +363,23 @@ intrinsic JointEigenspaceDecomposition(L::SetIndx[AlgGenElt]) -> Assoc
 	end for; 
 	return decomps;
 end intrinsic;
+
+intrinsic ProjectVectorToJointSpace(u::AlgGenElt,Y::SetIndx[AlgGenElt],Q::SeqEnum)->AlgGenElt
+{
+	Given an algebra element u, an indexed set Y= \{@a_1,a_2,...,a_k@\} of axes (or idempotents), as well as a sequence [lm_1,lm_2,...,lm_k], of
+	       	eigenvalues whose length equals the cardinality of axes, find the projection of u to the joint space A_\{lm_1,lm_2,...,lm_k\}(Y). Note that we do not check that Y consists of axes.
+																				  }
+	require #Y gt 0: "The set Y must be non-empty";
+	require #Y eq #Q: "The cardinalities of the sets of axes and eigenvalues must be equal.";
+	A:=Parent(u);
+	require IsCoercible(A,Eltseq(Y[1])): "The axes must be coercible to the parent algebra of u"; 
+	require forall{x:x in Q| x in BaseField(A)}:" The eigenvalues must be in the base field of the parent algebra.";
+	ads:=[AdMat(Y[i]):i in [1..#Y]];/*The adjoints.*/
+	eigs:=[x[1]:x in Eigenvalues(ads[1])];
+	id:=IdentityMatrix(BaseField(A), Dimension(A)); 
+	projs:=[&*[(ads[i]-x*id)/(Q[i]-x): x in eigs|x ne Q[i]]:i in [1..#Y]];
+	return u*(&*[x: x in projs]);
+end intrinsic;
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 + Function to check if an idempotent satisfies the Monster M(alpha,beta) fusion law. 						          +
 +           	                                                                                                                          +
@@ -441,3 +458,206 @@ intrinsic HasMonsterFusion(u::AlgGenElt:arbitrary_parameters:=false)-> BoolElt
 		return true;
 	end if;
 end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Function to check if an idempotent satisfies the Monster M(alpha,beta) fusion law. 						          +
++           	                                                                                                                          +
++ We implement ideas from Hall, Rehren and Shpectorov's 'Universal axial algebras and a theorem of Sakuma.                                +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
+/*check if the eigenvalues are in eigens, if so, check if dimensions add up.*/
+intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> BoolElt
+{
+	Check if the algebra element u satisfies the Monster M(alpha,beta) fusion law.
+	The switch for arbitrary alpha and beta is off by default, when we assume (alpha,beta)
+	is (1/4,1/32). Parameters:
+	-arbitrary_parameters a tuple <alpha,beta>, set to false by default. 
+}
+	require u*u eq u: "u must be an idempotent"; 
+	A:=Parent(u);
+        n:=Dimension(A);
+	F:=BaseField(A);
+	ad_u:=AdMat(u);
+	if Type(arbitrary_parameters) eq BoolElt then
+		alpha:=1/4;
+		beta:=1/32;
+	else
+		require Type(arbitrary_parameters) eq Tup: "The parameter must be in tuple form.";
+		require arbitrary_parameters[1] in F and arbitrary_parameters[2] in F: 
+		"The values alpha and beta must lie in the base field of underlying algebra.";
+		alpha:=arbitrary_parameters[1];
+		beta:=arbitrary_parameters[2];
+		require <alpha,beta> notin {<0,1>,<1,0>} and alpha ne beta: "alpha and beta must be distinct and different from 1 and 0.";
+	end if;
+	eigens:=[1,0,alpha,beta];
+	eigs:=IndexedSet(Eigenvalues(ad_u));
+	evalues:=[eigs[i][1]:i in [1..#eigs]];
+	if exists(ev){x:x in evalues|x notin eigens} then
+		printf("Eigenvalue %o not in [1,0,alpha,beta]\n"),ev;
+		return false; 
+	elif &+[eigs[i][2]:i in [1..#eigs]] ne n then /*semisimplicity check.*/
+		print("Dimensions do not add up\n");
+		return false;
+ 	end if;
+ 	/*At this point all failures with regards to the correct eigenvalues and simplicity 
+ 	have been tested.*/ 
+	R:=PolynomialRing(F,n);
+        FR:=FieldOfFractions(R);
+        AFR:=ChangeRing(A,FR);
+        x:=&*[R.i*AFR.i:i in [1..n]]; /* set up a general algebra element.*/
+        parts:=AssociativeArray();
+        for evalue in evalues do
+        	proj:=ProjectVectorToJointSpace(x,{@u@},[evalue]);
+        	parts[evalue]:=proj;
+        end for;
+	zero:=AFR!0;/*push this down so that we have 0_FR.*/
+        I_n:=IdentityMatrix(FR,n);
+	ad_u:=ChangeRing(ad_u,FR);
+	fusion_law:=[<<1,1>,{1}>,<<1,0>,{}>,<<1,alpha>,{alpha}>,<<1,beta>,{beta}>,
+		<<0,0>,{0}>,<<0,alpha>,{alpha}>,<<0,beta>,{beta}>,
+		<<alpha,alpha>,{1,0}>,<<alpha, beta>,{beta}>,<<beta,beta>,{1,0,alpha}>];
+	booleans:=[];
+	/* we do not need to check 1*lm_i for all lm_i.*/ 
+	for law in fusion_law[[5..#fusion_law]] do
+		bool:=(&*[parts[law[1][i]]:i in [1,2]])*(&*[ad_u-y*I_n:y in law[2]]) eq zero;
+		printf(" law %o done\n"),law;
+		Append(~booleans,bool);
+	end for;
+	if exists{bool:bool in booleans|bool eq false} then
+		return false;
+ 	else
+  		 return true;
+	end if;
+end intrinsic;
+intrinsic FindStructureConstantsSubAlgebra(A:: AlgGen, U::ModTupFld)->SeqEnum[ModTupFld]
+{	
+	Given An axial algebra A and a subalgebra U, find the structure constants c_\{i,j\}^k, where 
+	u_i*u_j=Sum_\{i=1\}^m c_\{i,j\}^ku_k, with u_1, u_2,...,u_m a basis for U. Here m:=dim(U). 
+	The function resturns a sequence of m-long vectors with structure constants corresposing to 
+	product u_i*u_j for j ge i.
+}
+        W:=VectorSpace(A);
+        require U subset W : "U must be a subspace of A.";
+	m:=Dimension(U);
+	require forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!U.i)*(A!U.j)) in U}}: "U must be a subalgebra";
+	tens:=[];
+	for i:=1 to m do
+       		for j:=i to m do
+			Append(~tens,ToSmallVec(A,U, (A!U.i)*(A!U.j)));
+		end for;
+	end for;
+	return tens;	
+end intrinsic;
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++This function takes an alebra/vector space A and a subspace V and a vector v in A to produce a dimV-long +
++ relative to a basis of V. The opposite of ToBigVec.                                                     +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ToSmallVec(A::AlgGen, V::ModTupFld, v::AlgGenElt)-> ModTupFldElt 
+{ 
+	Given an algebra A, a subspace V and a vector v of a which is coercible to V, find a dim(V)-long vector which is an expression of v in terms of some b		asis of V. 
+}
+
+	F:=BaseField(A);
+	n:=Dimension(A);
+	m:=Dimension(V);
+	AA:=VectorSpace(A);
+	require V subset AA: "V must be a subspace of A";
+	mat:=Matrix(F,[Eltseq(V.i):i in [1..m]]);
+	v,_:= Solution(mat,AA!Eltseq(v));
+	return v;
+end intrinsic;
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ We present a routine for finding all the idempotents in a subalgebra of an algebra.                                +
++														     +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,form:=false)-> SetIndx
+{	
+	Given an algebra A, a subalgebra U, as a subspace, find all the idempotents in U. We go and work in the 
+	subalgebra. Parameters:
+	1. length -the length of idempotents,
+	2. form -the Frobenius form if it exists, this is restricted to U; and 
+}
+	require U subset VectorSpace(A): "U must be a subspace of A.";
+	dim_U:=Dimension(U);
+	bas_U:=Basis(U);
+	L:=FindStructureConstantsSubAlgebra(A,U);/*checks if U is a subalgebra.*/
+	LL:=AllStructureConstants(L);
+	B:=Algebra<BaseField(A),dim_U|LL>;
+	f:=hom<B->A|[<B.i,A!bas_U[i]>:i in [1..dim_U]]>;/*embedding B into A.*/
+	/*we've proved that all algebras are unital.*/
+	_,one:=HasOne(B);
+	if Type(form) eq BoolElt then
+		bool,form:=HasFrobeniusForm(A);
+		if bool eq false then 
+			idemps:=FindAllIdempotents(B,VectorSpace(B):one:=one);
+		end if;
+	end if;
+	form_U:=RestrictedForm(form,U);
+	if Type(length) eq BoolElt then
+		idemps:=FindAllIdempotents(B,VectorSpace(B));
+	else
+		idemps:=FindAllIdempotents(B,VectorSpace(B):length:=length,form:=form_U,one:=one);
+	end if;
+	if Type(idemps) eq MonStgElt then
+		return "fail";
+	end if;
+	if #idemps eq 0 then
+		return {@ @};
+	end if;
+	if exists(x){y:y in idemps|IsCoercible(A,y) eq false} then
+		BB:=Parent(x);
+		FF:=BaseField(BB);
+		AA:=ChangeRing(A,FF);
+		ff:=hom<BB->AA|[<BB.i,AA!bas_U[i]>:i in [1..dim_U]]>;
+		return ff(idemps);
+	else
+		return f(idemps);
+	end if;
+end intrinsic;
+
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ A function to find the subalgebra generated by a sequence of axial vectors.                                    +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic SubAlgebra(L::SetIndx[AlgGenElt] )->ModTupFld 
+{
+	Given an indexed set L of axial vectors, return the subalgebra of the parent algebra that is generated by L. 
+} 
+	require #L gt 0: "L must be nonempty";
+	A:=Parent(L[1]); 
+	n:=Dimension(A);
+	W:=VectorSpace(A);
+	lst:=[Vector(L[i]):i in [1..#L]];/*set up the vectors in L as ordinary vectors*/
+	if #L eq 1 and W!0 in lst then
+		return sub<W|W!0>;
+	end if;
+	/* we start by finding a maximally independent set.*/ 
+	max_independent_set:=[];
+	non_zero:=[];
+	for i:=1 to #L do
+		if lst[i] ne W!0 then
+			Append(~non_zero,lst[i]);
+		end if;
+	end for;
+	V:=sub<W|non_zero[1]>;
+	if #non_zero eq 1 then 
+		max_independent_set:=non_zero;
+	else 
+		Append(~max_independent_set, non_zero[1]); 
+		for i:=2 to #non_zero do
+			if not non_zero[i] in V then
+				Append(~max_independent_set, non_zero[i]);
+				V+:=sub<W|non_zero[i]>;
+			end if;
+		end for;	
+	end if;
+	max_independent_set:=[A!x:x in max_independent_set];
+	bool,VV:=ExtendMapToAlgebra(max_independent_set, max_independent_set);
+	if bool eq true then 
+		return W;
+	else
+		return VV;
+	end if; 
+end intrinsic;
+

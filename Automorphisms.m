@@ -2191,7 +2191,7 @@ intrinsic IdentifyShapeSubAlg(L::SeqEnum[ParAxlAlgElt])->StgElt
 {
 	Given a sequence of axial algebra elements which are axes, identify the shape of the subalgebra they generate.
 }
-	require forall{c:c in L|HasMonsterFusion(c)}: "the elements of L must be axes";
+	//require forall{c:c in L|HasMonsterFusion(c)}: "the elements of L must be axes";
 	shapes:=[];
  	shape:="";
   	for i in [1..#L] do
