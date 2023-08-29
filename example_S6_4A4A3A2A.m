@@ -24,9 +24,18 @@ path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 A := LoadDecompositionAlgebra(path cat "S6/15+45/6A5A4A4A3A2A_1");
 F := BaseRing(A);
 n := Dimension(A);
+G := MiyamotoGroup(A);
+
+axis_reps := AxisOrbitRepresentatives(A: Miyamoto_closed := true);
+o15 := {@ axis_reps[1]*g : g in G @};
+o45 := {@ axis_reps[2]*g : g in G @};
+
+assert #o45 eq 45;
+B := Subalgebra(A, o45);
+assert Dimension(B) eq 121;
 
 // Computation (a)
-Jaxes := JordanAxes(A);
+time Jaxes := JordanAxes(A);
 assert #Jaxes := 1;
 
 

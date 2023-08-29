@@ -129,6 +129,73 @@ intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
   return found;
 end intrinsic;
 
+intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: extra_rels:=[], extend_field:=false) -> SetIndx
+  {
+  Given an algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
+  
+  Optional arguments:
+    extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
+    extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
+  }
+  F := BaseRing(A);
+  n := Dimension(A);
+	m := Dimension(U);
+	
+  require m le n: "U must be a subspace of A"; 
+  
+  P := PolynomialRing(F, m);
+	FF := FieldOfFractions(P);
+	
+  if extra_rels ne [] then
+    require forall{ x : x in extra_rels | IsCoercible(FF, x)}: "The extra relations do not lie in the correct field";
+  end if;
+  
+	AF := ChangeRing(A, FF);
+	
+	// We set up a general element x
+	bas := Basis(U);
+  x := &+[ P.i*AF!Eltseq(bas[i]) : i in [1..m]];
+	
+  // form the ideal
+  I := ideal<P | Eltseq(x*x - x) cat extra_rels>;
+  
+  if Dimension(I) ge 1 then
+    print "The variety of idempotents is not zero-dimensional.  Try adding extra relations.";
+		return false;
+	end if;
+  
+  // Form the variety and check to see if we have all the solutions
+  var := Variety(I);
+  varsize := VarietySizeOverAlgebraicClosure(I);
+  
+  // We need to coerce the variety elements back into the algebra
+  // We form a matrix whose rows are the elements of the variety (each row is the coefficients of the basis elements)
+  // and multiply by the matrix of basis elements
+  // idems := {@ A | r : r in Rows(Matrix([[v[i] : i in [1..m]]: v in var])*Matrix(bas)) @};
+  
+  
+  if #var eq varsize then
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  if not extend_field then
+    print "Warning: there are additional idempotents over a field extension";
+    // Do the simple coercion
+    idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
+    return idems;
+  end if;
+  
+  // so we need to extend the field and resolve
+  FClos := AlgebraicClosure(FF);
+  varCl := Variety(I, FClos);
+	ACl := ChangeRing(A, FClos);
+	
+	// Do the simple coercion
+  idems := {@ ACl | &+[ v[i]*ACl!bas[i] : i in [1..m]]: v in varCl @};
+  return idems;
+end intrinsic;
+
 intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:=[], extend_field:=false) -> SetIndx
   {
   Given a decomposition algebra A and a subspace (not necessarily a subalgebra) U, find all the idempotents of A contained in U.
@@ -266,8 +333,6 @@ end intrinsic;
 ========== Functions to find Jordan axes =============
 
 */
-
-// NEED TO COMPLETE - ISN'T IT COMPLETE??
 // First we need the Fixed subalgebra of A
 intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   {
@@ -282,8 +347,7 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
 end intrinsic;
 
-// NEED TO COMPLETE - ISN'T IT COMPLETE??
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> DecAlg
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> AlgGen
   {
   Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
   }
@@ -297,35 +361,38 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> DecAlg
   end if;
 end intrinsic;
 
-// NEED TO COMPLETE - ISN'T IT COMPLETE??
 intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   {
   Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
   }
-  // This will check that the dimensions of G and A or compatible.
+  /*
+  If b is a Jordan type 1/4 axis and a is one of the (known generating) axes in A,
+  then B = <<a, b>> is a 2-gen axial algebra of Monster type.
+  Since \tau_b = 1, it fixes a and hence \tau_a must fix b.
+  This is true for all axes a, so we can search for b in the fixed subalgebra.
+  */
+  
+  // This will also check that the dimensions of G and A or compatible.
   B := FixedSubalgebra(A, G);
   
-  // Why can we assume that a Jordan type axis should have length 1???  Not necessarily true for 2B
-  // idems := FindAllIdempotents(A, Vectorspace(B): form:= form, length := 1);
-  
+  /*
+  B = <<a, b>> must be either 2B, or 2A
+  If B is a 2A, then, as a is Monster type (1/4, 1/32) and b is Jordan type 1/4, a and b must be the standard generators for 2A
+  Hence the length of b is also 1
+  If B = 2B, then b could have length 1, or length 2 (be the identity in the 2B).
+  */
   V := VectorSpace(A);
   U := sub<V | [Vector(A!b) : b in Basis(B)]>;
-  idems := FindAllIdempotents(A, U);
-  
-  // Since b is in the fixed subalgebra, it has trivial 1/32 part, so we can just check for Monster Fusion law.
-  
-  // We also remove the zero and id from the list
+  idems := FindAllIdempotents(A, U:length := 1) join FindAllIdempotents(A, U:length := 2);
+
+  // We remove the zero and id from the list
   so, id := HasOne(A);
   if not so then
     id := A!0;
   end if;
   
-  return {@ b : b in idems | HasMonsterFusionLaw(b) @} diff {@ A!0, id@};
+  return {@ b : b in idems | HasJordanFusionLaw(b) @} diff {@ A!0, id@};
 end intrinsic;
-
-
-
-
 
 // DecomposeToJointEigenspaces 
 intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
@@ -359,9 +426,6 @@ intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   end for;
   return decomps;
 end intrinsic;
-
-
-
 /*
 
 Given a basis of a subspace and some extra vectors sieve the extra vectors to form a basis of the space spanned by all vectors.  Returns the indices of the required extra vectors for the basis.
