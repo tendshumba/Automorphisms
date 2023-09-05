@@ -8,7 +8,7 @@ n*[(i-1)*n+(j-1)]=(i-1)*n^2+(j-1)*n structure constants. Thus, the structure con
 intrinsic AllStructureConstants(L::SeqEnum[ModTupFldElt])->SeqEnum[FldElt]
 {
 	Given a sequence L of vectors (a_\{ij\}^k), i,k ranging between 1 and n, and j greater or equal to i, form the sequence of 
-       length n^3 with entries a_\{ij\}^k. L above may be obtained using GetStructureConsatants. We exploit the fact that axial 
+       length n^3 with entries a_\{ij\}^k. L above may be obtained using GetStructureConstants. We exploit the fact that axial 
 	algebras are commutative, by definition.
  }
 	 length:=#L;
@@ -168,7 +168,7 @@ intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: length:=false, form :=fals
 		end if;
 end intrinsic;
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+ This function takes an axial algebra A, a subspace V (not necessarily a subalgebra) and attempts to find all the +
++ This function takes an algebra A, a subspace V (not necessarily a subalgebra) and attempts to find all the       +
 + idempotents in V. This takes optional parameters (length, form,one) so that we can determine idempotents of a    +
 + prescribed length. In such a case it will be advantageous to input a form and identity if A has.                 +
 +                                                                                                                  +
@@ -212,16 +212,16 @@ intrinsic GetIdempotentIdeal(A::AlgGen, U::ModTupFld: length:=false, form :=fals
 	    if Type(one) ne BoolElt then
 		require Type(one) eq AlgGenElt: " one must be an axial algebra element";
 		require forall{i:i in [1..Dimension(A)]|one*(A.i) eq A.i}: "one must be algebra identity";
-I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,AF!Eltseq(one),form)-length]>;
+		I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,AF!Eltseq(one),form)-length]>;
 		return I;
 	    end if;	
 /*Here one is not given. Try and find it.*/
             if Type(one) eq BoolElt then
                 bool,one:=HasOne(A);
                 if bool eq false then
-		I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,v,form)-length]>;
+			I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,v,form)-length]>;
 		else
-		I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,AF!Eltseq(one),form)-length]>;
+			I:=ideal<R|Eltseq(v*v-v) cat [FrobFormAtElements(v,AF!Eltseq(one),form)-length]>;
                 end if;
                 return I;
              end if;
@@ -231,7 +231,7 @@ end intrinsic;
 
 intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 {
-	Given an axis a in an algebra A,  and a tuple T with two lists of eigenvalues of ad_a restricted to U, 
+	Given an axis a in an algebra A,  and a tuple T with two lists of eigenvalues of ad_a, 
 	one being positive and the second being negative in a C_2-grading, produce the tau map t_a as a dim(A)xdim(A) matrix.
 }
         A:=Parent(a);
@@ -246,9 +246,8 @@ intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 	I_m:=IdentityMatrix(BaseField(A),m);
 	eigs:=T[1] cat T[2];
 	P:=(&+[&*[(ad_a-x*I_m)/(T[1][j]-x):x in eigs| x ne T[1][j]]:j in [1..#T[1]]])-(&+[&*[(ad_a-x*I_m)/(T[2][j]-x):x in eigs|x ne T[2][j]]:j in [1..#T[2]]]);
-	/* This matrix (v_+)-(v_-), where v_- is the positive part of v, v_- is the negative part of v.*/
+	/* This matrix produces (v_+)-(v_-), where v_- is the positive part of v, v_- is the negative part of v.*/
 	return P;
-	//return Matrix([Eltseq((ToSmallVec(A,U,A!U.i))*P):i in [1..m]]);
 end intrinsic;
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -264,8 +263,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	where A is the axial algebra in question. If not, return false and the maximum subalgebra (as a vector space) to which the map extends.	
 }
 	require #input eq #images: "The lengths of the input and output lists must be  equal.";
-	//require Type(input[1]) eq ParAxlAlgElt and Type(images[1]) eq ParAxlAlgElt: "The elements of the given lists are not algebra elements.";
-	 A:=Parent(input[1]);
+	A:=Parent(input[1]);
         W:=VectorSpace(A);
 	require IsIndependent({W!Eltseq(x):x in input}): "The input list must be independent.";
 	require IsIndependent({W!Eltseq(x):x in images}): "The images list must be independent.";
@@ -326,7 +324,6 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	if #lst lt dim then
 		return false,sub;
 	end if;;
-
 	if sub_alg_mode eq "on" then
 		return true, MatrixAlgebra(F,dim)!1;
 	end if;
@@ -345,10 +342,9 @@ intrinsic JointEigenspaceDecomposition(L::SetIndx[AlgGenElt]) -> Assoc
   Given an indexed set of axes L = \{ a_1, ..., a_n\}, decompose the algebra into joint eigenspaces for these axes.  Returns an associative array where the element A_lm_1(a_1) \cap ... \cap A_lm_n(a_n) has keys give by the set of eigenvalues \{ lm_1, ..., lm_n \}.
   }
   
-//require forall{x:x in L|Type(x) eq ParAxlAlgElt} : "The elements are not axial algebra elements.";
 	/* should we check that the a_i are axes, i.e., HasMonsterFusion(a_i)? */
 	decomps:=AssociativeArray();
-	A:=Parent(L[1]); /* why this must be really axial*/ 
+	A:=Parent(L[1]);  
 	eigs:=[1,0,1/4,1/32];
 	n:=#L;
 	dims:=[];
@@ -388,7 +384,6 @@ end intrinsic;
 + We implement ideas from Hall, Rehren and Shpectorov's 'Universal axial algebras and a theorem of Sakuma.                                +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
-
 /*check if the eigenvalues are in eigens, if so, check if dimensions add up.*/
 intrinsic HasMonsterFusion(u::AlgGenElt:arbitrary_parameters:=false)-> BoolElt
 {
@@ -419,7 +414,7 @@ intrinsic HasMonsterFusion(u::AlgGenElt:arbitrary_parameters:=false)-> BoolElt
 	ad:=AdMat(u);
 	eigs:=IndexedSet(Eigenvalues(ad));
 	if exists(ev){eigs[i][1]:i in [1..#eigs]|not (eigs[i][1]  in eigens)} then
-		printf("Eigenvalue %o not in [1,0,alpha,beta]\n"),ev;
+		printf("Eigenvalue %o not in [1,0,%o,%o]\n"),ev,alpha,beta;
 		return false; 
 	elif &+[eigs[i][2]:i in [1..#eigs]] ne #bas then /*semisimplicity check.*/
 		print("Dimensions do not add up\n");
@@ -466,7 +461,7 @@ end intrinsic;
 +           	                                                                                                                          +
 + We implement ideas from Hall, Rehren and Shpectorov's 'Universal axial algebras and a theorem of Sakuma.                                +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-
+/*This is the quickest way of checking Monster fusion law.*/
 
 /*check if the eigenvalues are in eigens, if so, check if dimensions add up.*/
 intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> BoolElt
@@ -476,8 +471,8 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
 	is (1/4,1/32). Parameters:
 	-arbitrary_parameters a tuple <alpha,beta>, set to false by default. 
 }
-	require u*u eq u: "u must be an idempotent"; 
 	A:=Parent(u);
+	require u*u eq u and u ne A!0: "u must be a non-zero idempotent"; 
         n:=Dimension(A);
 	F:=BaseField(A);
 	ad_u:=AdMat(u);
@@ -496,7 +491,7 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
 	eigs:=IndexedSet(Eigenvalues(ad_u));
 	evalues:=[eigs[i][1]:i in [1..#eigs]];
 	if exists(ev){x:x in evalues|x notin eigens} then
-		printf("Eigenvalue %o not in [1,0,alpha,beta]\n"),ev;
+		printf("Eigenvalue %o not in [1,0,%o,%o]\n"),ev,alpha,beta;
 		return false; 
 	elif &+[eigs[i][2]:i in [1..#eigs]] ne n then /*semisimplicity check.*/
 		print("Dimensions do not add up\n");
@@ -534,24 +529,38 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
   		 return true;
 	end if;
 end intrinsic;
-intrinsic FindStructureConstantsSubAlgebra(A:: AlgGen, U::ModTupFld)->SeqEnum[ModTupFld]
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Find the structure constants in a subalgebra U of an algebra A.                                                      +
++                                                                                                                      +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic FindStructureConstantsSubAlgebra(A:: AlgGen, U::ModTupFld:subalgebra_check:=false)->SeqEnum[ModTupFld]
 {	
 	Given An axial algebra A and a subalgebra U, find the structure constants c_\{i,j\}^k, where 
 	u_i*u_j=Sum_\{i=1\}^m c_\{i,j\}^ku_k, with u_1, u_2,...,u_m a basis for U. Here m:=dim(U). 
-	The function resturns a sequence of m-long vectors with structure constants corresposing to 
-	product u_i*u_j for j ge i.
+	The function returns a sequence of m-long vectors with structure constants corresposing to 
+	 product u_i*u_j for j ge i. We will not check that U is a subalgebra by default, but changin subalgebra_check to true will cause a check.
 }
         W:=VectorSpace(A);
-        require U subset W : "U must be a subspace of A.";
 	m:=Dimension(U);
-	require forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!U.i)*(A!U.j)) in U}}: "U must be a subalgebra";
-	bas:=Basis(U);/*in the case of a subalgebra of a subalgebra generated by some vectors use of U.i is problematic.*/
-	tens:=[];
-	for i:=1 to m do
-       		for j:=i to m do
-			Append(~tens,ToSmallVec(A,U, (A!bas[i])*(A!bas[j])));
-		end for;
-	end for;
+       if subalgebra_check eq true then
+             require IsSubAlgebra(A,U): "U must be a subalgebra";/*this check takes half the time. When used. Use a key. In any case, it will fail if not a subalgebra.*/
+        end if;
+        bas:=Basis(U);
+        U:=VectorSpaceWithBasis(bas);/*in the case of a subalgebra of a subalgebra generated by some vectors use of U.i is problematic.*/
+        /*idea is to use the solution of extended system of equations using an extended augmented matrix. (ONLY MARGINAL GAINS from this).*/
+        bas_mat:=Matrix([Eltseq(bas[i]):i in [1..m]]);
+        prods:=[];/*note axial algebras are commutative.*/
+        t:=Cputime();
+        for i:=1 to m do
+	      for j:=i to m do
+		  Append(~prods, Vector((A!U.i)*(A!U.j)));
+              end for;
+        end for;
+        printf(" products of basis vectors found in %o seconds.\n"),Cputime(t);
+        t1:=Cputime();
+        tens:=Solution(bas_mat,prods);
+        printf("Coordinates of vectors found in %o seconds.\n"), Cputime(t1);
 	return tens;	
 end intrinsic;
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -593,7 +602,7 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 	LL:=AllStructureConstants(L);
 	B:=Algebra<BaseField(A),dim_U|LL>;
 	f:=hom<B->A|[<B.i,A!U.i>:i in [1..dim_U]]>;/*embedding B into A.*/
-	/*we've proved that all algebras are unital.*/
+	/*we've proved that all algebras of Monster type (1/4,1/32) are unital.*/
 	_,one:=HasOne(B);
 	if Type(form) eq BoolElt then
 		bool,form:=HasFrobeniusForm(A);
@@ -736,4 +745,167 @@ intrinsic FindFusionLaw(a::AlgGenElt)->SeqEnum /*V is a subspace which could be 
 	          end for;
         end for;		
 	return fus;
+end intrinsic;
+
+/*Suppose that an algebra A has a form U. Let B be a subalgebra of A.
+  This function produces the form restricted to B.*/
+intrinsic RestrictedForm(U::AlgMatElt, B::ModTupFld)-> AlgMatElt
+{
+	Given a subpace B of an algebra A admitting a form U, restrict the form to B.
+}
+	require Nrows(U) eq Ncols(U): "The form must be a square matrix";
+	require IsSymmetric(U): "The form must be symmetric";
+	require Degree(B) eq Nrows(U): "B must be a subspace of the parent algebra"; 
+	UU:=ChangeRing(U,BaseRing(B));
+	bas:=Basis(B);/*Issues with use of B.i when B is generated by some things.*/
+	arr:=[[InnerProduct((bas[i])*UU,(bas[j])):j in [1..Dimension(B)]]:i in[1..Dimension(B)]];
+	return Matrix(Rationals(),[Eltseq(x):x in arr]);
+end intrinsic;
+
+intrinsic IsSubAlgebra(A::AlgGen,V::ModTupFld)->BoolElt
+{
+	 Given an algebra A and a subspace V of A, ascertain if V is a subalgebra, that is, closed under multiplication in A.
+}
+	require V subset VectorSpace(A): "V must be  a subspace of A.";
+	W:=VectorSpace(A);
+	m:=Dimension(V);
+	V:=VectorSpaceWithBasis(Basis(V));/*force a nice basis to use with V.i.*/
+	return forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!V.i)*(A!V.j)) in V}};/*marginally faster.*/
+end intrinsic;
+
+intrinsic IsAutomorphic(A::AlgGen,M::Mtrx)->BoolElt
+{
+  Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if it is an automorphism.
+}
+	n:=Dimension(A);
+	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
+	require IsInvertible(M): "The provided map is not invertible.";
+	/*as usual we use commutativity to reduce work.*/
+	return forall{i:i in [1..n]|forall{j:j in [i..n]|((A.i)*M)*((A.j)*M) eq ((A.i)*(A.j))*M}};
+end intrinsic;
+
+intrinsic IsJordanAxis(a::AlgGenElt:eta:=1/4)->BoolElt
+{
+	Given an algebra element a, determine if it is a Jordan type eta axis. The default vaue 
+	of eta is 1/4.
+}
+	require eta in BaseField(Parent(a)): "eta must be in the base field of the parent algebra.";
+	require {x[1]:x in Eigenvalues(AdMat(a))} eq {1,0,eta}: "The element does not have the correct 
+	eigenvalues.";
+	return SatisfiesMonsterFusionLaw(a:arbitrary_parameters:=<eta,1/8*eta>);
+end intrinsic;
+
+intrinsic TauMapMonster(a::AlgGenElt:values:=false)->Mtrx
+{
+	For an axis a, find the corresponding tau map. Default values of alpha, beta are 1/4, 1/32.
+	The user can specify values of alpha beta by giving a tuple values:=\<alpha, beta\>. No check 
+	will be made that a satisfies the Monster fusion law. 
+}
+	
+	if Type(values) eq BoolElt then
+		alpha:=1/4;
+		beta:=1/32;
+	else
+		alpha:=values[1];
+		beta:=values[2];
+	end if;
+	return TauMap(a,<[1,0,alpha],[beta]>);
+end intrinsic;
+
+intrinsic SigmaMapMonster(a::AlgGenElt:eta:=false)->Mtrx
+{
+	Find the sigma map of a Jordan eta axis. No check that 
+	a satisfies the Jordan fusion law is made. Default value of eta is 1/4.
+}
+	if Type(eta) eq BoolElt then
+		eta:=1/4;
+	else
+		require eta in BaseField(Parent(a)): "The value of eta must be in the base field 
+	        of the parent algebra of a.";
+	end if;
+	return TauMap(a,<[1,0],[eta]>);
+end intrinsic;	
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// This function takes an automorphism phi of a subalgebra V of an axial algebra A and checks whether the         + 
+// automorphism extends to an automorphism of  a module M of V under adjoint actions of V. Note here              +
+//that V is just an ordinary space but A must be axial. Also, phi must be a dim(V)xdim(V) matrix over the base-   +
+//field of A. We assume that it is indeed an automorphism and a check shall not be made.                          +
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+intrinsic ExtendAutToMod(A::AlgGen, V::ModTupFld, M::ModTupFld, phi::AlgMatElt)-> BoolElt, ModTupFld
+{
+	Given an algebra A, a subalgebra V, a module M for V, together with a map or automorphism phi of V, determine if the automorphism induces a map on M.
+       	If true, a vector space with degree dim(M)xdim(M) is returned where each basis vector is a concatenation of rows of a matrix representing the induced map.
+}
+	require IsSubAlgebra(A, V) and M subset VectorSpace(A): "V and M must be subspaces of A.";
+	require forall{<v,w>:v in Basis(V),w in Basis(M)|Vector((A!v)*(A!w)) in M}: "M must be a module for V."; 
+	n:=Dimension(A);
+	k:=Dimension(V);
+	m:=Dimension(M);
+	F:=BaseField(A);
+	I_m:=IdentityMatrix(F,m);
+        V_onM:=[Matrix([Coordinates(M,VectorSpace(A)!(Eltseq((A!V.i)*(A!M.j)))):j in [1..m]]):i in [1..k]]; 
+ 	/*we've set up the ad_vi matrices acting on M, where v_i is a basis for V.*/
+	M:=VerticalJoin([KroneckerProduct(I_m,Matrix([[&+[phi[i][j]*(V_onM[j])[l][t]:j in [1..k]]:l in [1..m]]:t in [1..m]]))
+	-KroneckerProduct(V_onM[i],I_m):i in [1..k]]);/* For a fixed v_i, we have I_m\otimes [\sum_{j=1}^ka_{ij}\xi^j_{lt}]]-[ad_{v_i}]\otimes I_m*/
+	space:=Nullspace(Transpose(M));
+	if Dimension(space) eq 0 then 
+		return false,_;
+	else
+		return true,space;
+	end if;
+end intrinsic;
+
+//==================Jordan axes utilities.====================================================
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ This function determines the fixed subalgebra of a given matrix group for a particular algebra A. For efficiency, give the              +
++ fewest possible number of generators of the group. The function will return the fixed subalgebra in vector space form.                  +
++                                                                                                                                         +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/ 
+intrinsic FindFixedSubAlgebra(A::AlgGen, lst::SeqEnum[AlgMatElt])-> ModTupFld
+{
+	Given an algebra A and a list of automorphisms that generate the known automorphism group (containing Miy(A)) of A, 
+	find the fixed subalgebra, i.e., the set of all vectors which are fixed by all Miyamoto involutions or known automorphisms.
+}
+	//require Type(lst[1]) eq AlgMatElt : "The list must have matrices"; remove after testing.
+        dim:=Dimension(A);
+	require Nrows(lst[1]) eq Ncols(lst[1]) and Nrows(lst[1]) eq dim: "The elements of the sequence must be square matrices of the same dimension as A";
+	require forall{x:x in lst| IsInvertible(x)} : "Automorphisms must be invertible";  
+	Mat:=ZeroMatrix(BaseField(A),#lst*dim,dim); /* let x be in lst. Then we solve v*x =v for all v in Basis(A).*/		 
+	for l:=1 to #lst do
+		for i:=1 to dim do
+			for j:=1 to dim do
+				Mat[(l-1)*dim+i,j]:=lst[l][j,i];
+			end for;
+		end for;
+		for j:=1 to dim  do
+			Mat[(l-1)*dim+j,j]-:=1;
+		end for;
+	end for;
+	sol:=Nullspace(Transpose(Mat));
+	return sol;
+end intrinsic; 
+
+intrinsic AnnihilatorOfSpace(A::AlgGen, U::ModTupFld)->ModTupFld
+{
+	Given an algebra A and a subspace (not necessarily a subalgebra) U of A, find annU, the space \{a:in A|aU=0\}.
+}
+
+	require U subset VectorSpace(A): "U must be a subspace of A.";
+	bas_A:=Basis(A);
+	bas_U:=Basis(U);
+	/* Note that the condition in the set is that for a basis v_1,v_2,...,v_n of A, w_1,w_2,....,w_m of U, we have 
+	for an arbitrary a=Sum_{i=1}^n x_i*v_i, a*w_j=0, that is 0=(sum_{i=1}^nx_iv_i)w_j=sum_{i=1}^nx_i(\sum_{k=1}^n alpha_{ij}^kv_k).
+	Changing the order of summation yields 0_A=sum_{k=1}^n(sum_{i=1}^n alpha_{ij}^k*x_i)w_k. From this, for a fixed j, we get the 
+        matrix equation (0 0...0)=(x_1 x_2...x_n)*[a_{1j}^1 a_{1j}^2...a_{1j}^n]
+                                                  [a_{2j}^1 a_{2j}^2...a_{2j}^n]
+					          .    ...                     .
+					          .    ...                     .
+					          .    ...                     .
+					          [a_{nj}^1 a_{nj}^2....a_{nj}^n]
+	where a_{ij}^k is the kth coordinate in v_i*w_j, i.e., in ad_{v_i}(w_j).*/
+	//ads:=[AdMat(u): u in bas_A];
+ 	//return Nullspace(HorizontalJoin([Matrix([Eltseq(bas_U[j]*ads[i]):i in [1..#bas_A]]):j in [1..#bas_U]]));	
+ 	return Nullspace(HorizontalJoin([Matrix([Eltseq((A!bas_U[j])*bas_A[i]):i in [1..#bas_A]]):j in [1..#bas_U]]));	
 end intrinsic;
