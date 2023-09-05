@@ -660,18 +660,26 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   end if;
   
   // Check the fusion law
-  ebas := AssociativeArray([* <ev, Basis(espace[ev])> : ev in fusion_set *]);
-
+  // first precompute the adjoints for each element in the eigenspace
+  adjs := AssociativeArray([* <lm, [ AdjointMatrix(A!v) : v in Basis(espace[lm])]>
+                                 : lm in fusion_set*]);
+  
   al := fusion_set[3];
   bt := fusion_set[4];
 
   // these are the tuples <a,b,S> representing a*b = S in the fusion law
   // NB don't need to check 1*a
   fus_law := [ <0, 0, {0}>, <0, al, {al}>, <0, bt, {bt}>, <al, al, {1,0}>, <al, bt, {bt}>, <bt, bt, {1,0,al}> ]; 
-
+  
+  V := VectorSpace(A);
+  // I := IdentityMatrix(F, Dimension(A));
   for t in fus_law do
     a,b,S := Explode(t);
-    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | Vector(p) in &+[espace[s] : s in S]} then
+    // slightly slower to do this
+    // if not forall{ ad : ad in adjs[b] | BasisMatrix(espace[a])*ad*(&*[adu-s*I : s in S]) eq 0} then
+    // Quicker to take the rows of a matrix than join several subspaces.
+    U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
+    if not U subset &+[espace[s] : s in S] then
       return false;
     end if;
   end for;
@@ -724,17 +732,21 @@ intrinsic HasJordanFusionLaw(u::AlgGenElt: fusion_value := 1/4)-> BoolElt
   end if;
   
   // Check the fusion law
-  ebas := AssociativeArray([* <ev, Basis(espace[ev])> : ev in fusion_set *]);
-
+  // first precompute the adjoints for each element in the eigenspace
+  adjs := AssociativeArray([* <lm, [ AdjointMatrix(A!v) : v in Basis(espace[lm])]>
+                                 : lm in fusion_set*]);
+  
   eta := fusion_set[3];
 
   // these are the tuples <a,b,S> representing a*b = S in the fusion law
   // NB don't need to check 1*a
   fus_law := [ <0, 0, {0}>, <0, eta, {eta}>, <eta, eta, {1,0}> ]; 
-
+  
+  V := VectorSpace(A);
   for t in fus_law do
     a,b,S := Explode(t);
-    if not forall{ p : p in [ (A!v)*(A!w) : v in ebas[a], w in ebas[b]] | Vector(p) in &+[espace[s] : s in S]} then
+    U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
+    if not U subset &+[espace[s] : s in S] then
       return false;
     end if;
   end for;
