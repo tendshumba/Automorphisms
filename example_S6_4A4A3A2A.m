@@ -24,7 +24,8 @@ path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 A := LoadDecompositionAlgebra(path cat "S6/15+45/6A5A4A4A3A2A_1");
 F := BaseRing(A);
 n := Dimension(A);
-G := MiyamotoGroup(A);
+G0 := MiyamotoGroup(A);
+axes := Axes(A);
 
 axis_reps := AxisOrbitRepresentatives(A: Miyamoto_closed := true);
 o15 := {@ axis_reps[1]*g : g in G @};
@@ -36,10 +37,32 @@ assert Dimension(B) eq 121;
 
 // Computation (a)
 time Jaxes := JordanAxes(A);
-assert #Jaxes := 1;
+assert #Jaxes eq 1;
 
+d := Jaxes[1];
+sg_d := MiyamotoInvolution(d, 1/4: check_fusion:=false);
 
+// Computation (b)
+o15_twins := {@ a*sg_d : a in o15 @};
+assert o15_twins ne o15;
 
+// Computation (c)
+// ???
 
+// Computation (d)
+no_twins := FindMultiples(o45[1]);
+assert #no_twins eq 1 and no_twins[1] eq o45[1];
+
+// Computation (e)
+// ???
+
+// Computation (f)
+S :=SylowSubgroup(G0, 2);
+E := ElementaryAbelianSubgroups(S: OrderEqual:=8)[1]`subgroup;
+CG := CharacterGroup(A);
+Y := {@ axes[i] : i in [1..#axes] | MiyamotoElement(A,i, CG.1) in E@};
+YD := {@ Decomposition(a) : a in Y@};
+
+joint := JointPartDecomposition(YD);
 
 
