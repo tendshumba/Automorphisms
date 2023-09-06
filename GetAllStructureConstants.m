@@ -472,7 +472,7 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
 	-arbitrary_parameters a tuple <alpha,beta>, set to false by default. 
 }
 	A:=Parent(u);
-	require u*u eq u and u ne A!0: "u must be a non-zero idempotent"; 
+	require u*u eq u and u ne 0: "u must be a non-zero idempotent"; 
         n:=Dimension(A);
 	F:=BaseField(A);
 	ad_u:=AdMat(u);
@@ -503,14 +503,12 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
         FR:=FieldOfFractions(R);
         AFR:=ChangeRing(A,FR);
         x:=&*[R.i*AFR.i:i in [1..n]]; /* set up a general algebra element.*/
+        I_n:=IdentityMatrix(F,n);
         parts:=AssociativeArray();
         for evalue in evalues do
-        	proj:=ProjectVectorToJointSpace(x,{@u@},[evalue]);
+		proj:=x*(ChangeRing((&*[(ad_u-t*I_n)/(evalue-t):t in SequenceToSet(evalues) diff {evalue}]),FR));
         	parts[evalue]:=proj;
         end for;
-	zero:=AFR!0;/*push this down so that we have 0_FR.*/
-        I_n:=IdentityMatrix(FR,n);
-	ad_u:=ChangeRing(ad_u,FR);
 	fusion_law:=[<<1,1>,{1}>,<<1,0>,{}>,<<1,alpha>,{alpha}>,<<1,beta>,{beta}>,
 		<<0,0>,{0}>,<<0,alpha>,{alpha}>,<<0,beta>,{beta}>,
 		<<alpha,alpha>,{1,0}>,<<alpha, beta>,{beta}>,<<beta,beta>,{1,0,alpha}>];
@@ -518,8 +516,8 @@ intrinsic SatisfiesMonsterFusionLaw(u::AlgGenElt:arbitrary_parameters:=false)-> 
 	/* we do not need to check 1*lm_i for all lm_i.*/ 
 	for law in fusion_law[[5..#fusion_law]] do
 		if forall{i:i in [1,2]|law[1][i] in Keys(parts)} then/*loop necessary should one value be missing, eg in J(1/4) case.*/
-			bool:=(&*[parts[law[1][i]]:i in [1,2]])*(&*[ad_u-y*I_n:y in law[2]]) eq zero;
-			printf(" law %o done\n"),law;
+			bool:=(&*[parts[law[1][i]]:i in [1,2]])*(ChangeRing((&*[ad_u-y*I_n:y in law[2]]),FR)) eq 0;
+			printf(" rule %o done\n"),law;
 			Append(~booleans,bool);
 		end if;
 	end for;
@@ -900,12 +898,10 @@ intrinsic AnnihilatorOfSpace(A::AlgGen, U::ModTupFld)->ModTupFld
 	Changing the order of summation yields 0_A=sum_{k=1}^n(sum_{i=1}^n alpha_{ij}^k*x_i)w_k. From this, for a fixed j, we get the 
         matrix equation (0 0...0)=(x_1 x_2...x_n)*[a_{1j}^1 a_{1j}^2...a_{1j}^n]
                                                   [a_{2j}^1 a_{2j}^2...a_{2j}^n]
-					          .    ...                     .
-					          .    ...                     .
-					          .    ...                     .
+					           .             .     ...  .
+					           .             .     ...  .
+					           .             .     ...  .
 					          [a_{nj}^1 a_{nj}^2....a_{nj}^n]
 	where a_{ij}^k is the kth coordinate in v_i*w_j, i.e., in ad_{v_i}(w_j).*/
-	//ads:=[AdMat(u): u in bas_A];
- 	//return Nullspace(HorizontalJoin([Matrix([Eltseq(bas_U[j]*ads[i]):i in [1..#bas_A]]):j in [1..#bas_U]]));	
  	return Nullspace(HorizontalJoin([Matrix([Eltseq((A!bas_U[j])*bas_A[i]):i in [1..#bas_A]]):j in [1..#bas_U]]));	
 end intrinsic;
