@@ -929,3 +929,50 @@ intrinsic JordanAxes(A::AlgGen,gens::SeqEnum[AlgMatElt]:form:=false)-> SetIndx
 	return {@x:x in idemps|IsJordanAxis(x)@};
 end intrinsic;
 
+//======================================================Machinery for twins======================================================================
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++     Given an axis a, find axes b such that tau_a= tau_b if such axes exist.                                                                 +
++                                                                                                                                             +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic FindTwins(a::AlgGenElt:form:=false,one:=false,fusion_values:={@1/4,1/32@})->SetIndx
+{
+	Given an axis a of Monster type (alpha,beta), find axes b such that tau_a=tau_b if they exist. The default values of alpha, beta are 
+	1/4,1/32.
+}
+	A:=Parent(a);
+	F:=BaseField(A);
+	if fusion_values ne {@1/4,1/32@} then 
+		require Type(fusion_values[1]) eq FldElt and IsCoercible(F,fusion_values[1]): "The fusion values must be in the base field of the parent algebra.";
+	end if;
+	alpha:=fusion_values[1];
+	beta:=fusion_values[2];
+	require SatisfiesMonsterFusionLaw(a:arbitrary_parameters:=<alpha,beta>): "The input must be an axis of Monster type (alpha,beta).";
+	V:=VectorSpace(A);
+	ad_a:=AdMat(a);
+	eigenspace:=Eigenspace(ad_a,beta);
+	if Dimension(eigenspace) eq 0 then
+		eigenspace:=Eigenspace(ad_a,alpha);
+		if Dimension(eigenspace) eq 0 then
+			print "The given idempotent only has eigenvalues 0 and 1";
+			return {@ @};
+		end if;
+	end if;
+	if Type(one) eq BoolElt then
+		bool,one:=HasOne(A);/*we proved that our algebras are unital, so no need to worry, for future references we throw a warning.*/
+		if bool eq false then
+			ann:=AnnihilatorOfSpace(A,eigenspace);
+			if Type(form) eq BoolElt then
+				print "No method for finding a form has been specified.";
+				return 0;/*for now I have not set up the machinery to find a form.*/
+			end if;
+			idemps:=FindAllIdempotents(A,sub<A|Vector(a)>+ann:form:=false);/*This is somewhat unsatisfactory when dimension of ann is big.
+			The approach of finding u in ann with b=a+u may be better.*/
+			return {@SatisfiesMonsterFusionLaw(x):x in idemps diff {@0,a@}@};
+		end if;
+	end if;
+	idemps:=FindAllIdempotents(A,sub<V|Vector(one)>+AnnihilatorOfSpace(A,eigenspace):length:=1,form:=form,one:=one);/*if A is unital b is in 1+ann(A_beta(a).*/
+	return {@x:x in idemps diff{@a@} |SatisfiesMonsterFusionLaw(x)@};
+end intrinsic;
+	
