@@ -599,7 +599,8 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 	L:=FindStructureConstantsSubAlgebra(A,U);/*checks if U is a subalgebra.*/
 	LL:=AllStructureConstants(L);
 	B:=Algebra<BaseField(A),dim_U|LL>;
-	f:=hom<B->A|[<B.i,A!U.i>:i in [1..dim_U]]>;/*embedding B into A.*/
+	//f:=hom<B->A|[<B.i,A!U.i>:i in [1..dim_U]]>;/*embedding B into A.*/
+        basU_mat:=Matrix([Eltseq(bas_U[i]):i in [1..dim_U]]);
 	/*we've proved that all algebras of Monster type (1/4,1/32) are unital.*/
 	_,one:=HasOne(B);
 	if Type(form) eq BoolElt then
@@ -609,7 +610,6 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 		end if;
 	end if;
 	form_U:=RestrictedForm(form,U);
-        //form_U:=form;
 	if Type(length) eq BoolElt then
 		idemps:=FindAllIdempotents(B,VectorSpace(B));
 	else
@@ -625,10 +625,14 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 		BB:=Parent(x);
 		FF:=BaseField(BB);
 		AA:=ChangeRing(A,FF);
-		ff:=hom<BB->AA|[<BB.i,AA!U.i>:i in [1..dim_U]]>;
-		return ff(idemps);
+		//ff:=hom<BB->AA|[<BB.i,AA!U.i>:i in [1..dim_U]]>;
+		//return ff(idemps);
+		basU_mat:=ChangeRing(basU_mat,FF);
+		return {@AA!(Vector(x)*basU_mat):x in idemps@};
 	else
-		return f(idemps);
+		//return f(idemps);
+		return {@A!(Vector(x)*basU_mat):x in idemps@};
+
 	end if;
 end intrinsic;
 
@@ -905,3 +909,23 @@ intrinsic AnnihilatorOfSpace(A::AlgGen, U::ModTupFld)->ModTupFld
 	where a_{ij}^k is the kth coordinate in v_i*w_j, i.e., in ad_{v_i}(w_j).*/
  	return Nullspace(HorizontalJoin([Matrix([Eltseq((A!bas_U[j])*bas_A[i]):i in [1..#bas_A]]):j in [1..#bas_U]]));	
 end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Find all Jordan axes of type 1/4.                                                                                                       +
++                                                                                                                                         +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+intrinsic JordanAxes(A::AlgGen,gens::SeqEnum[AlgMatElt]:form:=false)-> SetIndx
+{
+	Let A be an algebra whose known automorphism group has generators gens (as a matrix group), find all Jordan 1/4 axes. 
+	It is the user's responsibility to check that the matrices in gens are indeed automorphisms using IsAutomorphic.
+}
+	
+	fix:=FindFixedSubAlgebra(A,gens);
+	idemps:=FindAllIdempotentsInSubAlgebra(A,fix:form:=form,length:=1) join FindAllIdempotentsInSubAlgebra(A,fix:form:=form,length:=2);
+	/* we have proved that if j is a jordan axis, then <<a,j>> is 2A or 2B. If 2A, then (j,j) must equal (a,a)=1 since automorphisms permute axes and 
+	 preserve length. If 2B, the identity has length 2 and could possibly be an imprimitive axis of jordan type in A. Notice that the length condition 
+	 eliminates 0_A and 1_A automatically.*/
+	return {@x:x in idemps|IsJordanAxis(x)@};
+end intrinsic;
+
