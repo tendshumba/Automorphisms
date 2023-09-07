@@ -975,4 +975,44 @@ intrinsic FindTwins(a::AlgGenElt:form:=false,one:=false,fusion_values:={@1/4,1/3
 	idemps:=FindAllIdempotents(A,sub<V|Vector(one)>+AnnihilatorOfSpace(A,eigenspace):length:=1,form:=form,one:=one);/*if A is unital b is in 1+ann(A_beta(a).*/
 	return {@x:x in idemps diff{@a@} |SatisfiesMonsterFusionLaw(x)@};
 end intrinsic;
-	
+
+//==================================================Check that an involutive matrix is induced by an axis or axes.====================================
+//
+intrinsic IsInducedFromAxisMat(A::AlgGen,M::Mtrx:form:=false,fusion_values:=<1/4,1/32>,automorphism_check:=true,length:=1)->BoolElt,AlgGenElt
+{
+	Given a square matrix which is involutive, and compatible with A, determine if it is induced by an axis a. The default fusion values 
+	are M(1/4,1/32), but can be changed to any arbitrary values. The swich to check if M is automorphic is turned on by default, but can be switched off.
+	The function returns a boolean value true if true, as well as any such axi(e)s that induce M. If false, only false will be returned. If the algebra is 	      Frobenius we assume that axes are of length 1, but this parameter can be changed.
+}
+	n:=Dimension(A);
+	require Nrows(M) eq Ncols(M) and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
+	F:=BaseField(A);
+	I_n:=IdentityMatrix(F,n);
+	require M ne Parent(I_n)!0: "The given matric must be non-zero";
+	require M^2 eq I_n and M ne I_n: "The given matrix is not involutive.";
+	require BaseRing(M) eq F or forall{i:i in [1..n]|forall{j:j in [1..n]|IsCoercible(F,M[i][j])}}: "The entries of M must be over the same field as A, 
+	or should be coercible into the base field of A.";
+	if automorphism_check eq true then
+		require IsAutomorphic(A,M): "The given matrix is not an automorphism";
+	end if;
+	if fusion_values ne <1/4,1/32> then
+		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";		end if;
+	alpha:=fusion_values[1];
+	beta:=fusion_values[2];
+	if Type(form) eq BoolElt then
+		print "No method as yet for finding if a form exists, please supply one if it does.\n";
+		return "fail";
+	end if;
+	space:=Eigenspace(M,-1);
+	bool,one:=HasOne(A);
+	if bool eq true then
+		idemps:=FindAllIdempotents(A,sub<VectorSpace(A)|Vector(one)>+AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+	else
+		idemps:=FindAllIdempotents(A,AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+	end if;
+	if idemps eq {@ @} then
+		return false,_;
+	else
+		return true, {@x:x in idemps|SatisfiesMonsterFusionLaw(x)@};
+	end if;
+end intrinsic;
