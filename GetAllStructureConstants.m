@@ -981,8 +981,9 @@ end intrinsic;
 intrinsic IsInducedFromAxisMat(A::AlgGen,M::Mtrx:form:=false,fusion_values:=<1/4,1/32>,automorphism_check:=true,length:=1)->BoolElt,AlgGenElt
 {
 	Given a square matrix which is involutive, and compatible with A, determine if it is induced by an axis a. The default fusion values 
-	are M(1/4,1/32), but can be changed to any arbitrary values. The swich to check if M is automorphic is turned on by default, but can be switched off.
-	The function returns a boolean value true if true, as well as any such axi(e)s that induce M. If false, only false will be returned. If the algebra is 	      Frobenius we assume that axes are of length 1, but this parameter can be changed.
+	are M(1/4,1/32), but can be changed to any arbitrary values. The switch to check if M is automorphic is turned on by default, but can be switched off.
+	The function returns a boolean value true if true, as well as any such axi(e)s that induce M. If false, only false will be returned. If the algebra is
+	Frobenius we assume that axes are of length 1, but this parameter can be changed.
 }
 	n:=Dimension(A);
 	require Nrows(M) eq Ncols(M) and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
@@ -996,7 +997,8 @@ intrinsic IsInducedFromAxisMat(A::AlgGen,M::Mtrx:form:=false,fusion_values:=<1/4
 		require IsAutomorphic(A,M): "The given matrix is not an automorphism";
 	end if;
 	if fusion_values ne <1/4,1/32> then
-		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";		end if;
+		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";
+	end if;
 	alpha:=fusion_values[1];
 	beta:=fusion_values[2];
 	if Type(form) eq BoolElt then
