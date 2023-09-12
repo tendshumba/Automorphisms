@@ -271,7 +271,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	closed:=0;
 	F:=BaseField(A);
 	sub_alg_mode:="off";
-	lst:=[W!Eltseq(input[i]):i in [1..#input]];
+	lst:=[Vector(input[i]):i in [1..#input]];
 	if input eq images then
 		sub_alg_mode:="on";
 	end if;
@@ -285,7 +285,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 		for i:=current[1] to current[2] do
 			for j:=new[1] to new[2] do
 				if not i gt j then/*idea here is that multiplication is commutative for axial algebras so v_i*v_j=v_j*v_i.*/
-				w:=W!Eltseq((A!lst[i])*(A!lst[j]));
+					w:=Vector((A!lst[i])*(A!lst[j]));
 					if not w in sub then
 						Append(~lst,w);
 						sub+:=sub<W|w>;
@@ -313,7 +313,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
                         change_of_basis:=Matrix([Coordinates(sub,lst[i]):i in [1..#lst]]);
                         V_ugly:=VectorSpaceWithBasis(lst);
                         current_map:=change_of_basis^(-1)*Matrix([Coordinates(V_ugly,Vector(ims[i])):i in [1..#lst]])*change_of_basis;
-                	lst:=bas;
+			lst:=[W!x:x in bas];
                 	V:=sub<W|bas>;
                 	Bas_V:=Matrix([Eltseq(bas[i]):i in [1..#lst]]);
                 	ims:=[(Solution(Bas_V,Vector(ims[i]))*current_map):i in [1..#ims]];
