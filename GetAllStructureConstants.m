@@ -147,7 +147,7 @@ intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: length:=false, form :=fals
 			if #var eq varsize then
 				idemps:=[];
 				for x in var do
-					ide:=&+[x[i]*A!U.i:i in [1..m]];
+					ide:=&+[x[i]*A!bas[i]:i in [1..m]];
 					Append(~idemps,ide);
 				end for;
 				return IndexedSet(idemps);
@@ -157,7 +157,7 @@ intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: length:=false, form :=fals
 				AClos:=ChangeRing(A,FClos);
 				idemps:=[];
 				for x in varF do
-					ide:=&+[x[i]*AClos!U.i:i in [1..m]];
+					ide:=&+[x[i]*AClos!bas[i]:i in [1..m]];
 					Append(~idemps,ide);
 				end for;
 				return IndexedSet(idemps), FClos;
@@ -248,6 +248,7 @@ intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 	P:=(&+[&*[(ad_a-x*I_m)/(T[1][j]-x):x in eigs| x ne T[1][j]]:j in [1..#T[1]]])-(&+[&*[(ad_a-x*I_m)/(T[2][j]-x):x in eigs|x ne T[2][j]]:j in [1..#T[2]]]);
 	/* This matrix produces (v_+)-(v_-), where v_- is the positive part of v, v_- is the negative part of v.*/
 	return P;
+	//return Matrix([Eltseq(A.i*P): i in [1..m]]);
 end intrinsic;
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -255,7 +256,6 @@ end intrinsic;
 + a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
 +                                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-
 intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt])->BoolElt,AlgMatElt
 {
 	Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 
@@ -264,23 +264,34 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 }
 	require #input eq #images: "The lengths of the input and output lists must be  equal.";
 	A:=Parent(input[1]);
-        W:=VectorSpace(A);
-	require IsIndependent({W!Eltseq(x):x in input}): "The input list must be independent.";
-	require IsIndependent({W!Eltseq(x):x in images}): "The images list must be independent.";
+	require images[1] in A: "Both the preimages and images must be in gthe same algebra.";
+	W:=VectorSpace(A);/* I DON'T THINK we actually need this. Actually we do, we have used it.*/
+	require IsIndependent(input): "The input list must be independent.";
+	require IsIndependent(images): "The images list must be independent.";/*the perks of using AlgGen.*/
 	dim:=Dimension(A);
 	closed:=0;
 	F:=BaseField(A);
-	sub_alg_mode:="off";
 	lst:=[Vector(input[i]):i in [1..#input]];
-	if input eq images then
-		sub_alg_mode:="on";
-	end if;
 	ims:=images;
 	sub:=sub<W|lst>;
 	m_s:=[1^i:i in [1..#lst]];
 	structs:=[Sprintf("x%o",i):i in [1..#lst]];
 	current:=[1,#lst];
-	new:=[1,#lst];
+	new:=[1,#lst];/* we start by making the vectors as nice as possible.*/
+	inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
+	bas:=Basis(sub);
+	bas:=[Vector(bas[i]):i in [1..#lst]];/*not allowed to coerce into a basis as is.*/
+	sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
+	change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
+	/*we are changing from inps to bas now.*/
+	lst:=[bas[i]:i in [1..#lst]];
+/*the initial map is represented by the matrix below (relative to original inputs).*/
+ 	phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));/*will always be identity in our set up, we'll leave it.*/
+	current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
+/*ims_coords:=[rows of current map because each basis vector in bas is e_i relative to bas, according to their order.*/
+	ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
+/*note that this is equivalent to applying the change of basis matrix to the old ims.*/
+//&+[cob_mat[j][i]*inps[i]:i in [1..#lst]]; for a fixed j, then vary js as usual.
 	while closed eq 0 do
 		for i:=current[1] to current[2] do
 			for j:=new[1] to new[2] do
@@ -291,50 +302,47 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 						sub+:=sub<W|w>;
 						Append(~m_s,m_s[i]+m_s[j]);
 						Append(~structs,Sprintf("(%o)(%o)",structs[i],structs[j]));
-						if not sub_alg_mode eq "on" then
-							Append(~ims,ims[i]*ims[j]);
-						end if;
+						Append(~ims,ims[i]*ims[j]);
 					end if;
 				end if;
 			end for;
 		end for;
-                if #lst eq current[2] or #lst eq dim then
-			closed+:=1;
+		printf("It is %o that the images and preimages are of the same cardinality\n"), #ims eq #lst;
+		bas:=Basis(sub);
+		bas:=[Vector(bas[i]):i in [1..#bas]];
+		inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
+		sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
+		change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
+		lst:=[bas[i]:i in [1..#lst]];
+		phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));
+		current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
+		ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
+		if #lst eq current[2] then
+			closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
 			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
+		elif #lst eq dim then
+			closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
+			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
+			inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
+			bas:=Basis(sub);
+			bas:=[Vector(bas[i]):i in [1..#bas]];
+			lst:=[bas[i]:i in [1..#lst]];
+			sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
+			change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
+			phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));
+			current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
 		else
 			/*update new and current.*/
 			new:=[current[2]+1,#lst];
 			current:=[1,#lst];
 			printf("current dimension is %o\n"),#lst;
-                        bas:=Basis(sub);
-                        if sub_alg_mode eq "on" then
-                           ims:=[A!bas[i]:i in [1..#lst]];
-                        end if;
-                        change_of_basis:=Matrix([Coordinates(sub,lst[i]):i in [1..#lst]]);
-                        V_ugly:=VectorSpaceWithBasis(lst);
-                        current_map:=change_of_basis^(-1)*Matrix([Coordinates(V_ugly,Vector(ims[i])):i in [1..#lst]])*change_of_basis;
-			lst:=[W!x:x in bas];
-                	V:=sub<W|bas>;
-                	Bas_V:=Matrix([Eltseq(bas[i]):i in [1..#lst]]);
-                	ims:=[(Solution(Bas_V,Vector(ims[i]))*current_map):i in [1..#ims]];
-                	ims:=[A!(&+[ims[i][j]*bas[j]:j in [1..#bas]]):i in [1..#ims]];
 		end if;
 	end while;
-	//return sub,structs,m_s;
 	if #lst lt dim then
 		return false,sub;
 	end if;;
-	if sub_alg_mode eq "on" then
-		return true, MatrixAlgebra(F,dim)!1;
-	end if;
-	bas_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
-	phi:=Matrix(F,[Eltseq(Solution(bas_mat,W!Eltseq(ims[i]))):i in [1..#ims]]);
-	std_phi:=bas_mat^(-1)*phi*bas_mat;
-	if std_phi eq IdentityMatrix(F,#lst) then
-		return true, std_phi;
-	else
-		return true,std_phi;
-	end if;
+	bas eq lst;
+	return true, current_map;
 end intrinsic;
 
 intrinsic JointEigenspaceDecomposition(L::SetIndx[AlgGenElt]) -> Assoc
@@ -567,7 +575,7 @@ end intrinsic;
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 intrinsic ToSmallVec(A::AlgGen, V::ModTupFld, v::AlgGenElt)-> ModTupFldElt 
 { 
-	Given an algebra A, a subspace V and a vector v of a which is coercible to V, find a dim(V)-long vector which is an expression of v in terms of some b		asis of V. 
+	Given an algebra A, a subspace V and a vector v of a which is coercible to V, find a dim(V)-long vector which is an expression of v in terms of some basis of V. 
 }
 
 	F:=BaseField(A);
@@ -600,6 +608,8 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 	LL:=AllStructureConstants(L);
 	B:=Algebra<BaseField(A),dim_U|LL>;
 	//f:=hom<B->A|[<B.i,A!U.i>:i in [1..dim_U]]>;/*embedding B into A.*/
+	/*Abandoned this idea because as dimensions grow, this takes time to form
+	For instance, the 19-dim joint 0-eigenspace subalgebra for A_6 takes three or more minutes here.*/
         basU_mat:=Matrix([Eltseq(bas_U[i]):i in [1..dim_U]]);
 	/*we've proved that all algebras of Monster type (1/4,1/32) are unital.*/
 	_,one:=HasOne(B);
@@ -625,19 +635,18 @@ intrinsic FindAllIdempotentsInSubAlgebra(A::AlgGen,U::ModTupFld:length:=false,fo
 		BB:=Parent(x);
 		FF:=BaseField(BB);
 		AA:=ChangeRing(A,FF);
-		//ff:=hom<BB->AA|[<BB.i,AA!U.i>:i in [1..dim_U]]>;
-		//return ff(idemps);
 		basU_mat:=ChangeRing(basU_mat,FF);
-		return {@AA!(Vector(x)*basU_mat):x in idemps@};
+	//	return {@AA!(Vector(x)*basU_mat):x in idemps@};
+		return  {@AA!x@basU_mat:x in idemps@};
 	else
-		//return f(idemps);
-		return {@A!(Vector(x)*basU_mat):x in idemps@};
+		//return {@A!(Vector(x)*basU_mat):x in idemps@};
+	return {@ A!x@basU_mat:x in idemps@};
 
 	end if;
 end intrinsic;
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+ A function to find the subalgebra generated by a sequence of axial vectors.                                    +
++ A function to find the subalgebra generated by a sequence of algebra vectors.                                  +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 intrinsic SubAlgebra(L::SetIndx[AlgGenElt] )->ModTupFld 
 {
@@ -846,7 +855,9 @@ intrinsic ExtendAutToMod(A::AlgGen, V::ModTupFld, M::ModTupFld, phi::AlgMatElt)-
 	m:=Dimension(M);
 	F:=BaseField(A);
 	I_m:=IdentityMatrix(F,m);
-        V_onM:=[Matrix([Coordinates(M,VectorSpace(A)!(Eltseq((A!V.i)*(A!M.j)))):j in [1..m]]):i in [1..k]]; 
+	basV:=Basis(V);
+	basM:=Basis(M);
+        V_onM:=[Matrix([Coordinates(M,VectorSpace(A)!(Eltseq((A!basV[i])*(A!basM[j])))):j in [1..m]]):i in [1..k]]; 
  	/*we've set up the ad_vi matrices acting on M, where v_i is a basis for V.*/
 	M:=VerticalJoin([KroneckerProduct(I_m,Matrix([[&+[phi[i][j]*(V_onM[j])[l][t]:j in [1..k]]:l in [1..m]]:t in [1..m]]))
 	-KroneckerProduct(V_onM[i],I_m):i in [1..k]]);/* For a fixed v_i, we have I_m\otimes [\sum_{j=1}^ka_{ij}\xi^j_{lt}]]-[ad_{v_i}]\otimes I_m*/
