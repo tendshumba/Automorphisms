@@ -607,9 +607,62 @@ intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
 end intrinsic;
 
 
+intrinsic IsInducedFromAxis(A::DecAlg, phi::Map: fusion_values:=<1/4,1/32>, length:=1, automorphism_check:=true) -> BoolElt, {@ DecAlgElt @}
+  {
+	Given a map phi, determine if it is a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
+	
+	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether phi is an automorphism.
+  }
+  // TO COMPLETE - can just use function below, or program this and use this one for the one below
+end intrinsic;
 
+intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:=<1/4,1/32>, length:=1, automorphism_check:=true) -> BoolElt, {@ DecAlgElt @}
+  {
+	Given an involutive square matrix, determine if it represents a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
+	
+	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether M represents an automorphism.
+  }
+  // TO COMPLETE
+end intrinsic;
+/*
 
+============ Checking an automorphism ==================
 
+*/
+intrinsic IsAutomorphism(A::DecAlg, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
+  {
+  Given a decomposition algebra A and a square matrix M compatible with A representing a map A-> A, determine if M represents an automorphism.  Optional argument for giving the generators of the algebra.
+  }
+  Alg := Algebra(A);
+  gens := [ Alg!Eltseq(a) : a in generators];
+  return IsAutomorphism(Alg, M: generators:=gens);
+end intrinsic;
+
+intrinsic IsAutomorphism(A::DecAlg, phi::Map: generators:=Basis(A)) -> BoolElt
+  {
+  Given a decomposition algebra A and a map phi: A-> A, determine if phi is an automorphism.  Optional argument for giving the generators of the algebra.
+  }
+  // TO COMPLETE - can just call one of the other functions here
+end intrinsic;
+
+intrinsic IsAutomorphism(A::AlgGen, phi::Map: generators:=Basis(A)) -> BoolElt
+  {
+  Given an algebra A and a map phi: A-> A, determine if phi is an automorphism.  Optional argument for giving the generators of the algebra.
+  }
+  // TO COMPLETE - can just call one of the other functions here
+end intrinsic;
+
+// IsAutomorphic
+intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
+  {
+  Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if M represents an automorphism.  Optional argument for giving the generators of the algebra.
+  }
+	n := Dimension(A);
+	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
+	require IsInvertible(M): "The provided map is not invertible.";
+
+  // TO COMPLETE
+end intrinsic;
 /*
 
 ============ Checking axes and fusion laws ==================
@@ -675,12 +728,15 @@ intrinsic HasMonsterFusionLaw(u::AlgGenElt: fusion_values := {@1/4, 1/32@})-> Bo
   // I := IdentityMatrix(F, Dimension(A));
   for t in fus_law do
     a,b,S := Explode(t);
-    // slightly slower to do this
-    // if not forall{ ad : ad in adjs[b] | BasisMatrix(espace[a])*ad*(&*[adu-s*I : s in S]) eq 0} then
-    // Quicker to take the rows of a matrix than join several subspaces.
-    U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
-    if not U subset &+[espace[s] : s in S] then
-      return false;
+    // If either eigenspace is empty, then don't need to check
+    if not IsEmpty(adjs[b]) and Dimension(espace[a]) ne 0 then
+      // slightly slower to do this
+      // if not forall{ ad : ad in adjs[b] | BasisMatrix(espace[a])*ad*(&*[adu-s*I : s in S]) eq 0} then
+      // Quicker to take the rows of a matrix than join several subspaces.
+      U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
+      if not U subset &+[espace[s] : s in S] then
+        return false;
+      end if;
     end if;
   end for;
 
@@ -745,9 +801,12 @@ intrinsic HasJordanFusionLaw(u::AlgGenElt: fusion_value := 1/4)-> BoolElt
   V := VectorSpace(A);
   for t in fus_law do
     a,b,S := Explode(t);
-    U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
-    if not U subset &+[espace[s] : s in S] then
-      return false;
+    // If either eigenspace is empty, then don't need to check
+    if not IsEmpty(adjs[b]) and Dimension(espace[a]) ne 0 then
+      U := sub<V | Rows(VerticalJoin([ BasisMatrix(espace[a])*ad : ad in adjs[b]]))>;
+      if not U subset &+[espace[s] : s in S] then
+        return false;
+      end if;
     end if;
   end for;
 
