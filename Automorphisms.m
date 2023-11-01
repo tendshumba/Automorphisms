@@ -622,7 +622,34 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:=<1/4,1/32>, 
 	
 	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether M represents an automorphism.
   }
-  // TO COMPLETE
+  	n:=Dimension(A);
+	require Nrows(M) eq Ncols(M) and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
+	F:=BaseField(A);
+	I_n:=IdentityMatrix(F,n);
+	require M ne Parent(I_n)!0: "The given matric must be non-zero";
+	require M^2 eq I_n and M ne I_n: "The given matrix is not involutive.";
+	require BaseRing(M) eq F or forall{i:i in [1..n]|forall{j:j in [1..n]|IsCoercible(F,M[i][j])}}: "The entries of M must be over the same field as A, 
+	or should be coercible into the base field of A.";
+	if automorphism_check eq true then
+		require IsAutomorphic(A,M): "The given matrix is not an automorphism";
+	end if;
+	if fusion_values ne <1/4,1/32> then
+		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";
+	end if;
+	alpha:=fusion_values[1];
+	beta:=fusion_values[2];
+	space:=Eigenspace(M,-1);
+	bool,one:=HasOne(A);
+	if bool eq true then
+		idemps:=FindAllIdempotents(A,sub<VectorSpace(A)|Vector(one)>+AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+	else
+		idemps:=FindAllIdempotents(A,AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+	end if;
+	if idemps eq {@ @} then
+		return false,_;
+	else
+		return true, {@x:x in idemps|HasMonsterFusionLaw(x)@};
+	end if;
 end intrinsic;
 /*
 
