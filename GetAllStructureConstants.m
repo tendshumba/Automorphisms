@@ -256,7 +256,7 @@ end intrinsic;
 + a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
 +                                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt])->BoolElt,AlgMatElt
+intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt]:form:=false)->BoolElt,AlgMatElt
 {
 	Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 
 	extend the map as far as possible. If the map extends to the whole algebra, return true and a matrix that gives a multiplicative map A->A
@@ -269,6 +269,12 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	require IsIndependent(input): "The input list must be independent.";
 	require IsIndependent(images): "The images list must be independent.";/*the perks of using AlgGen.*/
 	dim:=Dimension(A);
+	if not Type(form) eq BoolElt then
+		require Type(form) eq AlgMatElt: "form must be a matrix";
+		require Nrows(form) eq Ncols(form) and Nrows(form) eq dim: "the form must be compattible with the algebra.";
+		require forall{i:i in [1..#input]|LengthOfElement(input[i],form) eq LengthOfElement(images[i],form)}: "Every element must be a mapped to another element of the same length";
+	require forall{i:i in [1..#input]|forall{j:j in [i..#input]|FrobFormAtElements(input[i],input[j],form) eq FrobFormAtElements(images[i],images[j],form)}}: "An algebra automorphism must preserve Frobenius form.";
+	end if;	
 	closed:=0;
 	F:=BaseField(A);
 	lst:=[Vector(input[i]):i in [1..#input]];
@@ -784,17 +790,31 @@ intrinsic IsSubAlgebra(A::AlgGen,V::ModTupFld)->BoolElt
 	return forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!V.i)*(A!V.j)) in V}};/*marginally faster.*/
 end intrinsic;
 
-intrinsic IsAutomorphic(A::AlgGen,M::Mtrx)->BoolElt
+
+intrinsic IsAutomorphic(A::AlgGen,M::Mtrx:gens:=false)->BoolElt
 {
-  Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if it is an automorphism.
+  Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if it is an automorphism. 
+  Optional input gens, an indexed set of generators.
 }
 	n:=Dimension(A);
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
 	require IsInvertible(M): "The provided map is not invertible.";
 	/*as usual we use commutativity to reduce work.*/
-	return forall{i:i in [1..n]|forall{j:j in [i..n]|((A.i)*M)*((A.j)*M) eq ((A.i)*(A.j))*M}};
+	mat:=Matrix([Eltseq(bas[i]):i in [1..n]]) where bas is Basis(A);
+	if Type(gens) ne BoolElt then
+		require Type(gens) eq SetIndx: "The generators must be in an indexed set.";
+		require Dimension(SubAlgebra(gens)) eq n: "The given set must generate A.";
+		ims:=[A!((gens[i])*M):i in [1..#gens]];
+		if forall{x:x in gens|x*x-x eq 0} then/*if all gens are idempotents x*x=x so no need to check.*/
+			return forall{i:i in [1..#gens]|forall{j:j in [i+1..#gens]|(ims[i])*(ims[j]) eq A!(((gens[i])*(gens[j]))*M)}};
+		else
+			return forall{i:i in [1..#gens]|forall{j:j in [i..#gens]|(ims[i])*(ims[j]) eq A!(((gens[i])*(gens[j]))*M)}};
+		end if;
+	else
+		ims:=[A!((A.i)*M):i in [1..n]];
+		return forall{i:i in [1..n]|forall{j:j in [i..n]|(ims[i])*(ims[j]) eq A!(((A.i)*(A.j))*M)}};
+	end if;
 end intrinsic;
-
 intrinsic IsJordanAxis(a::AlgGenElt:eta:=1/4)->BoolElt
 {
 	Given an algebra element a, determine if it is a Jordan type eta axis. The default vaue 
