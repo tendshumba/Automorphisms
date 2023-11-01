@@ -689,7 +689,7 @@ iintrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> Bool
 	require IsInvertible(M): "The provided map is not invertible.";
 	/*as usual we use commutativity to reduce work.*/
 	if #generators lt n then/*user supplied generators*/
-		require Type(generators) eq SetIndx: "The generators must be in an indexed set.";
+		require Type(generators) eq SeqEnum: "The generators must be in an indexed set.";
 		require Dimension(SubAlgebra(generators)) eq n: "The given set must generate A.";
 		ims:=[A!((generators[i])*M):i in [1..#generators]];
 		if forall{x:x in generators|x*x-x eq 0} then/*if all gens are idempotents x*x=x so no need to check.*/
