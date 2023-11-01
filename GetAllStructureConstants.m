@@ -800,7 +800,6 @@ intrinsic IsAutomorphic(A::AlgGen,M::Mtrx:gens:=false)->BoolElt
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
 	require IsInvertible(M): "The provided map is not invertible.";
 	/*as usual we use commutativity to reduce work.*/
-	mat:=Matrix([Eltseq(bas[i]):i in [1..n]]) where bas is Basis(A);
 	if Type(gens) ne BoolElt then
 		require Type(gens) eq SetIndx: "The generators must be in an indexed set.";
 		require Dimension(SubAlgebra(gens)) eq n: "The given set must generate A.";
