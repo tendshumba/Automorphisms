@@ -631,7 +631,7 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:=<1/4,1/32>, 
 	require BaseRing(M) eq F or forall{i:i in [1..n]|forall{j:j in [1..n]|IsCoercible(F,M[i][j])}}: "The entries of M must be over the same field as A, 
 	or should be coercible into the base field of A.";
 	if automorphism_check eq true then
-		require IsAutomorphic(A,M): "The given matrix is not an automorphism";
+		require IsAutomorphism(A,M): "The given matrix is not an automorphism";
 	end if;
 	if fusion_values ne <1/4,1/32> then
 		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";
@@ -680,15 +680,27 @@ intrinsic IsAutomorphism(A::AlgGen, phi::Map: generators:=Basis(A)) -> BoolElt
 end intrinsic;
 
 // IsAutomorphic
-intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
+iintrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
   {
   Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if M represents an automorphism.  Optional argument for giving the generators of the algebra.
   }
-	n := Dimension(A);
+	n:=Dimension(A);
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
 	require IsInvertible(M): "The provided map is not invertible.";
-
-  // TO COMPLETE
+	/*as usual we use commutativity to reduce work.*/
+	if #generators lt n then/*user supplied generators*/
+		require Type(generators) eq SetIndx: "The generators must be in an indexed set.";
+		require Dimension(SubAlgebra(generators)) eq n: "The given set must generate A.";
+		ims:=[A!((generators[i])*M):i in [1..#generators]];
+		if forall{x:x in generators|x*x-x eq 0} then/*if all gens are idempotents x*x=x so no need to check.*/
+			return forall{i:i in [1..#generators]|forall{j:j in [i+1..#generators]|(ims[i])*(ims[j]) eq A!(((generators[i])*(generators[j]))*M)}};
+		else
+			return forall{i:i in [1..#generators]|forall{j:j in [i..#generators]|(ims[i])*(ims[j]) eq A!(((generators[i])*(generators[j]))*M)}};
+		end if;
+	else
+		ims:=[A!((A.i)*M):i in [1..n]];
+		return forall{i:i in [1..n]|forall{j:j in [i..n]|(ims[i])*(ims[j]) eq A!(((A.i)*(A.j))*M)}};
+	end if;
 end intrinsic;
 /*
 
