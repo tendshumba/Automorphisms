@@ -260,7 +260,6 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
   // and multiply by the matrix of basis elements
   // idems := {@ A | r : r in Rows(Matrix([[v[i] : i in [1..m]]: v in var])*Matrix(bas)) @};
   
-  
   if #var eq varsize then
     // Do the simple coercion
     idems := {@ A | &+[ v[i]*bas[i] : i in [1..m]]: v in var @};
@@ -607,48 +606,55 @@ intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
 end intrinsic;
 
 
-intrinsic IsInducedFromAxis(A::DecAlg, phi::Map: fusion_values:=<1/4,1/32>, length:=1, automorphism_check:=true) -> BoolElt, {@ DecAlgElt @}
+intrinsic IsInducedFromAxis(A::DecAlg, phi::Map: fusion_values:={@1/4, 1/32@}, length:=1, automorphism_check:=true) -> BoolElt, SetIndx//{@ DecAlgElt @}
   {
 	Given a map phi, determine if it is a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
 	
 	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether phi is an automorphism.
   }
-  // TO COMPLETE - can just use function below, or program this and use this one for the one below
+  // TO COMPLETE - can just use function below
 end intrinsic;
 
-intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:=<1/4,1/32>, length:=1, automorphism_check:=true) -> BoolElt, {@ DecAlgElt @}
+intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@}, length:=1, automorphism_check:=true) -> BoolElt, SetIndx//{@ DecAlgElt @}
   {
 	Given an involutive square matrix, determine if it represents a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
 	
 	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether M represents an automorphism.
   }
-  	n:=Dimension(A);
-	require Nrows(M) eq Ncols(M) and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
-	F:=BaseField(A);
-	I_n:=IdentityMatrix(F,n);
-	require M ne Parent(I_n)!0: "The given matric must be non-zero";
+  n := Dimension(A);
+	require Nrows(M) eq n and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
+	F := BaseField(A);
+	I_n := IdentityMatrix(F, n);
 	require M^2 eq I_n and M ne I_n: "The given matrix is not involutive.";
-	require BaseRing(M) eq F or forall{i:i in [1..n]|forall{j:j in [1..n]|IsCoercible(F,M[i][j])}}: "The entries of M must be over the same field as A, 
-	or should be coercible into the base field of A.";
+	
+	so, MM := CanChangeRing(M, F);
+	require so : "The entries of M must be over the same field as A, or should be coercible into the base field of A.";
+	
 	if automorphism_check eq true then
-		require IsAutomorphism(A,M): "The given matrix is not an automorphism";
+	  // M or MM??
+		require IsAutomorphism(A, M): "The given matrix is not an automorphism";
 	end if;
-	if fusion_values ne <1/4,1/32> then
-		require fusion_values[1] in F and fusion_values notin {<1,0>,<0,1>}: "The fusion values must be in the base field and distinct from 0 and 1.";
-	end if;
-	alpha:=fusion_values[1];
-	beta:=fusion_values[2];
-	space:=Eigenspace(M,-1);
-	bool,one:=HasOne(A);
-	if bool eq true then
-		idemps:=FindAllIdempotents(A,sub<VectorSpace(A)|Vector(one)>+AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+	
+	require Type(fusion_values) eq SetIndx and #fusion_values eq 2 and 1 notin fusion_values and 0 notin fusion_values: "You must provide two distinct non-zero, non-one ring or field elements for the fusion law.";
+	so, fusion_values := CanChangeUniverse(fusion_values, F);
+	require so: "The fusion values must be coercible into the base ring of the algebra.";
+	
+	neg := Eigenspace(M, -1);
+  ann := AnnihilatorOfSpace(A, neg);
+  
+  so, one := HasOne(A);
+	if so then
+		idemps := FindAllIdempotents(A,
+		            sub<VectorSpace(A) | Vector(one)> + ann : length:=length);
 	else
-		idemps:=FindAllIdempotents(A,AnnihilatorOfSpace(A,space):form:=form,length:=length,one:=one);
+		idemps := FindAllIdempotents(A, ann: length:=length);
 	end if;
-	if idemps eq {@ @} then
-		return false,_;
+	
+	if IsEmpty(idemps) then
+		return false, _;
 	else
-		return true, {@x:x in idemps|HasMonsterFusionLaw(x)@};
+		return true, {@x : x in idemps | HasMonsterFusionLaw(x : 
+		                                      fusion_values:=fusion_values)@};
 	end if;
 end intrinsic;
 /*
@@ -676,31 +682,37 @@ intrinsic IsAutomorphism(A::AlgGen, phi::Map: generators:=Basis(A)) -> BoolElt
   {
   Given an algebra A and a map phi: A-> A, determine if phi is an automorphism.  Optional argument for giving the generators of the algebra.
   }
-  // TO COMPLETE - can just call one of the other functions here
+  M := Matrix([phi(v) : v in Basis(A)]);
+  
+  return IsAutomorphism(A, M: generators:=generators);
 end intrinsic;
 
 // IsAutomorphic
-iintrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
+intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
   {
   Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if M represents an automorphism.  Optional argument for giving the generators of the algebra.
   }
-	n:=Dimension(A);
-	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
+	n := Dimension(A);
+	require Nrows(M) eq n and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
 	require IsInvertible(M): "The provided map is not invertible.";
-	/*as usual we use commutativity to reduce work.*/
-	if #generators lt n then/*user supplied generators*/
-		require Type(generators) eq SeqEnum: "The generators must be in an indexed set.";
-		require Dimension(SubAlgebra(generators)) eq n: "The given set must generate A.";
-		ims:=[A!((generators[i])*M):i in [1..#generators]];
-		if forall{x:x in generators|x*x-x eq 0} then/*if all gens are idempotents x*x=x so no need to check.*/
-			return forall{i:i in [1..#generators]|forall{j:j in [i+1..#generators]|(ims[i])*(ims[j]) eq A!(((generators[i])*(generators[j]))*M)}};
-		else
-			return forall{i:i in [1..#generators]|forall{j:j in [i..#generators]|(ims[i])*(ims[j]) eq A!(((generators[i])*(generators[j]))*M)}};
-		end if;
-	else
-		ims:=[A!((A.i)*M):i in [1..n]];
-		return forall{i:i in [1..n]|forall{j:j in [i..n]|(ims[i])*(ims[j]) eq A!(((A.i)*(A.j))*M)}};
-	end if;
+	
+	// Can remove this in future, by editing the code below
+	require IsCommutative(A): "We currently require the algebra to be commutative.";
+	
+	require Type(generators) eq SeqEnum: "The generators must be in a sequence.";
+	so, generators := CanChangeUniverse(generators, A);
+	require so: "The generators must be coercible into the algebra.";
+	
+	// Magma's sub command has a bug for non-associative algebras
+	// So we use our own Subalgebra command
+	require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
+	
+	// pre-compute the images
+	ims := [generators[i]*M : i in [1..#generators]];
+	
+	// We use commutativity to reduce work
+	return forall{<i,j> : j in [i..n], i in [1..n] |
+	                 ims[i]*ims[j] eq (generators[i]*generators[j])*M };
 end intrinsic;
 /*
 
