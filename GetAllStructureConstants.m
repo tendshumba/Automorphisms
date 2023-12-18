@@ -226,7 +226,6 @@ intrinsic GetIdempotentIdeal(A::AlgGen, U::ModTupFld: length:=false, form :=fals
                 return I;
              end if;
      end if;
-
 end intrinsic;
 
 intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
@@ -241,7 +240,8 @@ intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 	Eigs:=Eigenvalues(ad_a);
 	vals:=[x[1]:x in Eigs];
 	multiplicities:=[x[2]:x in Eigs];
-	require forall{x:x in T[1] cat T[2]|x in vals}: "Every element in the tuple components must be an eigenvalue of a";
+	//require forall{x:x in T[1] cat T[2]|x in vals}: "Every element in the tuple components must be an eigenvalue of a";problem if an eigenvalue is missing
+	require forall{x:x in vals|x in T[1] cat T[2]}: "Every element in the tuple components must be an eigenvalue of a";
 	require &+[x:x in multiplicities] eq m: "a must be semi-simple.";
 	I_m:=IdentityMatrix(BaseField(A),m);
 	eigs:=T[1] cat T[2];
@@ -252,7 +252,7 @@ intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 end intrinsic;
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-+ This function takes an axial algebra A, and two lists, input, and images, of axial vectors which must be of the same length and ouputs    +
++ This function takes an axial algebra A, and two lists, input, and images, of algebra elements which must be of the same length and ouputs +
 + a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
 +                                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
@@ -265,51 +265,59 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	require #input eq #images: "The lengths of the input and output lists must be  equal.";
 	A:=Parent(input[1]);
 	require images[1] in A: "Both the preimages and images must be in gthe same algebra.";
-	W:=VectorSpace(A);/* I DON'T THINK we actually need this. Actually we do, we have used it.*/
+	W:=VectorSpace(A);
 	require IsIndependent(input): "The input list must be independent.";
 	require IsIndependent(images): "The images list must be independent.";/*the perks of using AlgGen.*/
 	dim:=Dimension(A);
 	if not Type(form) eq BoolElt then
 		require Type(form) eq AlgMatElt: "form must be a matrix";
-		require Nrows(form) eq Ncols(form) and Nrows(form) eq dim: "the form must be compattible with the algebra.";
+		require Nrows(form) eq Ncols(form) and Nrows(form) eq dim: "the form must be compatible with the algebra.";
 		require forall{i:i in [1..#input]|LengthOfElement(input[i],form) eq LengthOfElement(images[i],form)}: "Every element must be a mapped to another element of the same length";
-	require forall{i:i in [1..#input]|forall{j:j in [i..#input]|FrobFormAtElements(input[i],input[j],form) eq FrobFormAtElements(images[i],images[j],form)}}: "An algebra automorphism must preserve Frobenius form.";
+	require forall{i:i in [1..#input]|forall{j:j in [i..#input]|FrobFormAtElements(input[i],input[j],form) eq FrobFormAtElements(images[i],images[j],form)}}:
+	"An algebra automorphism must preserve Frobenius form.";
 	end if;	
 	closed:=0;
 	F:=BaseField(A);
 	lst:=[Vector(input[i]):i in [1..#input]];
 	ims:=images;
 	sub:=sub<W|lst>;
+	sub_W:=sub<W|[Vector(x):x in ims]>;
+        bas_W:=Basis(sub_W);
 	m_s:=[1^i:i in [1..#lst]];
 	structs:=[Sprintf("x%o",i):i in [1..#lst]];
 	current:=[1,#lst];
 	new:=[1,#lst];/* we start by making the vectors as nice as possible.*/
-	inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
+	inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);/*possibly not needed in the new paradigm.*/
 	bas:=Basis(sub);
 	bas:=[Vector(bas[i]):i in [1..#lst]];/*not allowed to coerce into a basis as is.*/
-	sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
+	bas_mat_W:=Matrix(F,[Eltseq(bas_W[i]):i in [1..#ims]]);
+	nu:=Matrix(F,[Eltseq(Solution(bas_mat_W,[Vector(ims[k]):k in [1..#bas_W]])[i]):i in [1..#lst]]);/*change of basis from the "nicer" to the nastier basis for im phi.*/
+	sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);/*Coordinates of the nicer basis in terms of the older,
+						   "uglier" basis.*/
 	change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
-	/*we are changing from inps to bas now.*/
-	lst:=[bas[i]:i in [1..#lst]];
-/*the initial map is represented by the matrix below (relative to original inputs).*/
- 	phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));/*will always be identity in our set up, we'll leave it.*/
-	current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
-/*ims_coords:=[rows of current map because each basis vector in bas is e_i relative to bas, according to their order.*/
+	lst:=[bas[j] :j in [1..#lst] ];
+	current_map:=change_of_basis_mat*nu;
 	ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
-/*note that this is equivalent to applying the change of basis matrix to the old ims.*/
-//&+[cob_mat[j][i]*inps[i]:i in [1..#lst]]; for a fixed j, then vary js as usual.
 	while closed eq 0 do
 		for i:=current[1] to current[2] do
 			for j:=new[1] to new[2] do
 				if not i gt j then/*idea here is that multiplication is commutative for axial algebras so v_i*v_j=v_j*v_i.*/
 					w:=Vector((A!lst[i])*(A!lst[j]));
-					if not w in sub then
+ 		 			if w in sub then
+		 				mat_inps:=Matrix(F,[Eltseq(lst[k]):k in [1..#lst]]);
+			 			sol:=Solution(mat_inps,w);
+			 			im:=&+[sol[k]*ims[k]:k in [1..#lst]];
+			 			if not im eq ims[i]*ims[j] then
+				 			printf(" %o, %o not multiplicative\n"),i,j;
+                                 			return false,_;
+			 			end if;
+					 else
 						Append(~lst,w);
 						sub+:=sub<W|w>;
 						Append(~m_s,m_s[i]+m_s[j]);
 						Append(~structs,Sprintf("(%o)(%o)",structs[i],structs[j]));
 						Append(~ims,ims[i]*ims[j]);
-					end if;
+                        		end if;
 				end if;
 			end for;
 		end for;
@@ -319,27 +327,23 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 		inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
 		sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
 		change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
-		lst:=[bas[i]:i in [1..#lst]];
-		phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));
-		current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
+		sub_W:=sub<W|[Vector(x):x in ims]>;
+        	bas_W:=Basis(sub_W);
+		bas_mat_W:=Matrix(F,[Eltseq(bas_W[i]):i in [1..#ims]]);
+		nu:=Matrix(F,[Eltseq(Solution(bas_mat_W,[Vector(ims[k]):k in [1..#bas_W]])[i]):i in [1..#lst]]);/*change of basis from the "nicer" to the nastier basis for im phi.*/
+		current_map:=change_of_basis_mat*nu;
+		lst:=[bas[j] :j in [1..#lst] ];
+		/*ims_coords:=[rows of current map because each basis vector in bas is e_i relative to bas, according to their order.*/
 		ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
 		if #lst eq current[2] then
-			closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
+		       	closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
 			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
 		elif #lst eq dim then
 			closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
 			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
-			inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
-			bas:=Basis(sub);
-			bas:=[Vector(bas[i]):i in [1..#bas]];
-			lst:=[bas[i]:i in [1..#lst]];
-			sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
-			change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
-			phi:=Matrix(Solution(inps_mat,[Vector(ims[i]):i in [1..#lst]]));
-			current_map:=change_of_basis_mat*phi*(change_of_basis_mat^-1);
 		else
 			/*update new and current.*/
-			new:=[current[2]+1,#lst];
+		       	new:=[current[2]+1,#lst];
 			current:=[1,#lst];
 			printf("current dimension is %o\n"),#lst;
 		end if;
@@ -347,7 +351,6 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt
 	if #lst lt dim then
 		return false,sub;
 	end if;;
-	bas eq lst;
 	return true, current_map;
 end intrinsic;
 
