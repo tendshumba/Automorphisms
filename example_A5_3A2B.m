@@ -30,20 +30,28 @@ assert Dimension(Vaxes) eq #axes;
 assert forall{i : i in [1..#axes] | Vaxes.i eq Vector(axes[i])};
 
 pi := Eltseq(Sym(15)!(1, 3)(2, 14)(5, 9)(6, 15)(8, 11)(10, 13));
+G0 := MiyamotoGroup(A);
+G := sub<Sym(15) | G0, pi>;
+assert IsIsomorphic(G, Sym(5));
+// So pi is an involution outside of A5.
 
+// Now find the automorphism psi corresponding to pi
 phi := hom<Vaxes -> VectorSpace(A) | [Vaxes.i : i in pi]>;
 so, psi := ExtendMapToAlgebraAutomorphism(A, phi);
 assert so;
 
-G0 := MiyamotoGroup(A);
-E := SylowSubgroup(G0, 2);
-
-G := sub<Sym(15) | G0, pi>;
-Miy_map := MiyamotoActionMap(A);
+// Computation 10.1 (c)
+// Check that psi is not induced from a (possible new) axis
 psi_mat := Matrix([Vector(A.i)@psi : i in [1..n]]);
+so := IsInducedFromAxis(A, psi_mat: automorphism_check:=false);
+assert not so;
+
+Miy_map := MiyamotoActionMap(A);
 GMat := MatrixGroup<n, F | Image(Miy_map), psi_mat>;
 G_map := hom<G->GMat | [<g, g@Miy_map> : g in Generators(G0)] cat [<G!pi,psi_mat>] >;
 
+
+E := SylowSubgroup(G0, 2);
 K := Centraliser(G, E);
 N := Normaliser(G,E);
 assert IsIsomorphic(N/E, Sym(3));
