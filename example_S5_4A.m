@@ -25,7 +25,7 @@ assert #jordan_axis eq 1;
 d := jordan_axis[1];
 
 evals, espaces, FL := IdentifyFusionLaw(d);
-assert #FL eq 3;
+assert #FL eq 3; // Jordan type fusion law
 S := espaces cat [sub<VectorSpace(A)|>];
 Dd := AxialDecomposition(A, S, d);
 
@@ -56,6 +56,13 @@ assert axis_reps[2]*sg eq axis_reps[2];
 
 // Computation 10.19 (c)
 
+// Computation 10.20 (a) & (b)
+Dd := Decompositions(A)[1];
+FL := FusionLaw(A);
+assert Dimension(Part(Dd, FL!1)) eq 1;
+assert Dimension(Part(Dd, FL!2)) eq 46;
+assert Dimension(Part(Dd, FL!3)) eq 14;
 
+axis_reps := AxisOrbitRepresentatives(A);
 
 
