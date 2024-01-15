@@ -698,7 +698,8 @@ intrinsic IsAutomorphism(A::DecAlg, phi::Map: generators:=Basis(A)) -> BoolElt
   {
   Given a decomposition algebra A and a map phi: A-> A, determine if phi is an automorphism.  Optional argument for giving the generators of the algebra.
   }
-  // TO COMPLETE - can just call one of the other functions here
+  gens:=[Algebra(A)!Eltseq(a):a in generators];
+  return IsAutomorphism(Algebra(A),phi:generators:=gens);
 end intrinsic;
 
 intrinsic IsAutomorphism(A::AlgGen, phi::Map: generators:=Basis(A)) -> BoolElt
@@ -734,7 +735,7 @@ intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolE
 	ims := [generators[i]*M : i in [1..#generators]];
 	
 	// We use commutativity to reduce work
-	return forall{<i,j> : j in [i..n], i in [1..n] |
+	return forall{<i,j> : j in [i..#generators], i in [1..#generators] |
 	                 ims[i]*ims[j] eq (generators[i]*generators[j])*M };
 end intrinsic;
 /*
