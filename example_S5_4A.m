@@ -69,6 +69,7 @@ assert #invs_G eq 5;
 assert [x[2]:x in invs_G] eq [1, 10, 10, 15, 15];
 fifteen_inds:=[i:i in [1..5]|invs_G[i][2] eq 15];
 assert #fifteen_inds eq 2;
+g:=MiyamotoInvolution(fifteen_orbit[1]);
 outside_fifteen:=[invs_G[i][3]:i in fifteen_inds|g notin invs_G[i][3]^G];
 assert #outside_fifteen eq 1;
 assert IsInducedFromAxis(A,Matrix(outside_fifteen[1])) eq false;
