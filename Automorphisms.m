@@ -560,20 +560,21 @@ end intrinsic;
 
 // ExtendAutToMod
 // How do we give the map phi??? as a map to a matrix?
-intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
+intrinsic HasInducedMap(A::AlgGen, M::ModTupFld, phi::Map) -> BoolElt, .
   {
   Suppose phi is an automorphism of a (AlgGen) subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
   }
   B := Domain(phi);
   require ISA(Type(B), AlgGen): "The domain of the map must be an algebra";
-  require B subset Algebra(A): "B must be a subalgebra of A.";
+  require B subset A: "B must be a subalgebra of A.";
   require Codomain(phi) eq B: "The map must be an automorphism of a subalgebra B of A.";
   // Could check for being an automorphism here, but might be costly.
   
   require BaseRing(M) eq BaseRing(A) and OverDimension(M) eq Dimension(A): "M must be a subspace of A";
   
   // Replace once coercion for subalgebras works properly
-  Aalg := Algebra(A);
+  //Aalg := Algebra(A);
+  Aalg:=A;
   Balg := B;
   function coerce(b)
     return A!Vector(Aalg!(Balg!Vector(b)));
@@ -628,6 +629,15 @@ intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
 	end if;
 end intrinsic;
 
+intrinsic HasInducedMap(A::DecAlg, M::ModTupFld,phi::Map)->BoolElt,.
+{
+	Suppose phi is an automorphism of a subalgebra (AlgGen) B of A, and M is a module for B. Try to construct the map psi: M-->M such that (ma)^psi=m^psi*a^phi, for all a in B and m in M.
+}
+	AA:=Algebra(A);
+	return HasInducedMap(AA,M,phi);
+end intrinsic;
+
+
 
 intrinsic IsInducedFromAxis(A::DecAlg, phi::Map: fusion_values:={@1/4, 1/32@}, length:=1, automorphism_check:=true) -> BoolElt, SetIndx//{@ DecAlgElt @}
   {
@@ -676,8 +686,7 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@
 	if IsEmpty(idemps) then
 		return false, _;
 	else
-		return true, {@x : x in idemps | HasMonsterFusionLaw(x : 
-		                                      fusion_values:=fusion_values)@};
+		return true, {@x : x in idemps | HasMonsterFusionLaw(x :fusion_values:=fusion_values)@};
 	end if;
 end intrinsic;
 /*
