@@ -19,6 +19,9 @@ n := Dimension(A);
 
 G0 := MiyamotoGroup(A);
 
+// The Miyamoto group is a permutation group on the axes
+axes := Axes(A);
+assert forall{ <i,g> : i in [1..#axes], g in Generators(G0) | axes[i]*g eq axes[Image(g,GSet(G0),i)]};
 
 // Computation 10.19 (a)
 jordan_axis := JordanAxes(A);
