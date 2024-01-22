@@ -38,9 +38,9 @@ assert #(FindMultiples(axes_reps[1])) eq 1;
 // Computation 12.18 (c)
 Vaxes :=sub<VectorSpace(Algebra(A))|[Vector(x):x in axes]>;
 psi :=hom<Vaxes->VectorSpace(A)|[<Vector(axes[i]), Vector(axes[i^phi])>:i in [1..21]]>;/*Fails incorrectly.*/
-bool, psi_map :=ExtendMapToAlgebraAutomorphism(A, psi);
+bool,psi_map :=ExtendMapToAlgebraAutomorphism(A,psi);
 assert bool;
-assert IsAutomorphism(A, psi_map:generators:=axes);
+assert IsAutomorphism(A,psi_map:generators:=axes);
 
 /*We've checked that indeed we have constructed an algebra automorphism not induced by an axis.*/
 G :=PermutationGroup<21|G0,phi>;
@@ -58,7 +58,7 @@ assert IsInducedFromAxis(A,Matrix([Eltseq(Vector(A.i)@psi_28_map):i in [1..57]])
 
 a :=axes[1];
 two_Bs :=[x:x in axes[[2..21]]| x*a eq A!0 ];
-assert #two_As gt 2;
+assert #two_Bs gt 2;
 b :=two_Bs[1];
 c :=[x:x in two_Bs[[2..#two_Bs]]| a*x eq A!0 and b*x eq A!0][1];
 Y :={@a,b,c@};
@@ -178,7 +178,7 @@ I_57 :=IdentityMatrix(F, 57);
 ad_ais :=[AdjointMatrix(x): x in Y];
 /* We set up the projection to the joint 0-eigenspace/subalgebra U. Since the decomposition (joint) is complete, the joint projections to a space are simply the compositions of the projections of the respective axes a_i for the required eigenvalue combinations.*/
 Proj_000_mat :=&*[&*[1/(0-lm)*(ad-lm*I_57):lm in [1, 0, 1/4, 1/32]|lm ne 0]:ad in ad_ais];
-assert forall{i:i in [1..57] Vector(A.i)*Proj_000_mat in U};
+assert forall{i:i in [1..57] |Vector(A.i)*Proj_000_mat in U};
 
 W1_prods :={(A!Ws[1].i)*(A!Ws[1].j):i in [1..2],j in [1..2]};
 W2_prods :={(A!Ws[2].i)*(A!Ws[2].j):i in [1..2],j in [1..2]};
