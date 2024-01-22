@@ -20,7 +20,7 @@ n := Dimension(A);
 G0 := MiyamotoGroup(A);
 assert GroupName(G0) eq "PSL(2,7)";
 /*The perumtation below is a permutation of the axes of A which preserves shape.*/
-phi:=Sym(21)!(1, 16, 10, 11)(2, 4, 12, 14, 20, 21, 8, 7)(3, 5, 18, 13, 15, 9, 6, 17);
+phi :=Sym(21)!(1, 16, 10, 11)(2, 4, 12, 14, 20, 21, 8, 7)(3, 5, 18, 13, 15, 9, 6, 17);
 assert IsCoercible(G0,phi) eq false;/*hence this is an outer automorphism*/
 axis_reps := AxisOrbitRepresentatives(A);
 f :=MiyamotoActionMap(A);
