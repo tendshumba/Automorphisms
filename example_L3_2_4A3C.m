@@ -20,12 +20,10 @@ n := Dimension(A);
 G0 := MiyamotoGroup(A);
 assert GroupName(G0) eq "PSL(2,7)";
 /*The perumtation below is a permutation of the axes of A which preserves shape.*/
-//phi :=Sym(21)!(1, 17)(2, 9)(3, 10)(4, 20)(5, 11)(6, 14)(7, 18)(8, 15)(12, 21);
 phi:=Sym(21)!(1, 16, 10, 11)(2, 4, 12, 14, 20, 21, 8, 7)(3, 5, 18, 13, 15, 9, 6, 17);
 assert IsCoercible(G0,phi) eq false;/*hence this is an outer automorphism*/
 axis_reps := AxisOrbitRepresentatives(A);
 f :=MiyamotoActionMap(A);
-G0_mat :=G0@f;
 axes :=Axes(A);
 
 //Computation 12.18 (a) We show that A has no Jordan axes.
@@ -40,9 +38,9 @@ assert #(FindMultiples(axes_reps[1])) eq 1;
 // Computation 12.18 (c)
 Vaxes :=sub<VectorSpace(Algebra(A))|[Vector(x):x in axes]>;
 psi :=hom<Vaxes->VectorSpace(A)|[<Vector(axes[i]), Vector(axes[i^phi])>:i in [1..21]]>;/*Fails incorrectly.*/
-bool,psi_map :=ExtendMapToAlgebraAutomorphism(A,psi);
+bool, psi_map :=ExtendMapToAlgebraAutomorphism(A, psi);
 assert bool;
-assert IsAutomorphism(A,psi_map:generators:=axes);
+assert IsAutomorphism(A, psi_map:generators:=axes);
 
 /*We've checked that indeed we have constructed an algebra automorphism not induced by an axis.*/
 G :=PermutationGroup<21|G0,phi>;
