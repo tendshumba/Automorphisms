@@ -1,24 +1,36 @@
-
 /*
 
 The example for L_3(2) 4B3A
 
 */
+/*
 AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
+*/
+
+AttachSpec("../DecompAlgs/DecompAlgs.spec");
+AttachSpec("../AxialTools/AxialTools.spec");
+Attach("../DecompAlgs/AxialTools.m");
+Attach("Automorphisms.m");
 
 // Alter this to the path of where your algebra is stored
 //path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 
 SetSeed(1);
 /*Preliminary data.*/
-A := LoadDecompositionAlgebra("Monster_1,4_1,32/RationalField()/4B3A_1.json");
+A := LoadDecompositionAlgebra(path cat "PSL(2,7)/21/4B3A_1.json");
 F := BaseRing(A);
 n := Dimension(A);
 G0 := MiyamotoGroup(A);
 assert GroupName(G0) eq "PSL(2,7)";
+
+// If the algebra is Miyamoto closed, then the Miyamoto group is a permutation group on the axes
+axes := Axes(A);
+assert forall{ <i,g> : i in [1..#axes], g in Generators(G0) | axes[i]*g eq axes[Image(g,GSet(G0),i)]};
+
+
 /*The perumtation below is a permutation of the axes of A which preserves shape.*/
 phi:=Sym(21)!(1, 7)(3, 10)(4, 11)(5, 15)(6, 8)(9, 16)(12, 17)(14, 21)(19, 20);
 assert IsCoercible(G0,phi) eq false;/*hence this is an outer automorphism*/
@@ -128,7 +140,7 @@ assert eigs_d eq {<0,4>, <1,1>,<1/2,3>, <9/10,2>};
 assert &+{x[2]:x in eigs_d} eq 10;
 
 /* Part (d). "Almost" monster  (9/10,1/2) means that inverting the 1/2-eigenspace gives an automorphism.*/
-evals,espaces, FL:=IdentifyFusionLaw(d_U: eigenvalues:={@1,0, 9/10,1/2@});
+evals, espaces, FL := IdentifyFusionLaw(d_U: eigenvalues:={@1,0, 9/10,1/2@});
 FL;
 /*should be visibly graded.*/
 inputs:=&cat [Basis(espaces[i]):i in [1..4]];

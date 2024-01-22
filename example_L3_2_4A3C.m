@@ -9,59 +9,84 @@ AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
 
+/*
+AttachSpec("../DecompAlgs/DecompAlgs.spec");
+AttachSpec("../AxialTools/AxialTools.spec");
+Attach("../DecompAlgs/AxialTools.m");
+Attach("Automorphisms.m");
+*/
+
 // Alter this to the path of where your algebra is stored
-//path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
+/*
+path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
+*/
 
 SetSeed(1);
 /*Preliminary data.*/
-A := LoadDecompositionAlgebra("Monster_1,4_1,32/RationalField()/4A3C_1.json");
+A := LoadDecompositionAlgebra(path cat "PSL(2,7)/21/4A3C_1.json");
 F := BaseRing(A);
 n := Dimension(A);
 G0 := MiyamotoGroup(A);
 assert GroupName(G0) eq "PSL(2,7)";
-/*The perumtation below is a permutation of the axes of A which preserves shape.*/
-phi :=Sym(21)!(1, 16, 10, 11)(2, 4, 12, 14, 20, 21, 8, 7)(3, 5, 18, 13, 15, 9, 6, 17);
-assert IsCoercible(G0,phi) eq false;/*hence this is an outer automorphism*/
-axis_reps := AxisOrbitRepresentatives(A);
-f :=MiyamotoActionMap(A);
-axes :=Axes(A);
 
-//Computation 12.18 (a) We show that A has no Jordan axes.
+// If the algebra is Miyamoto closed, then the Miyamoto group is a permutation group on the axes
+axes := Axes(A);
+assert forall{ <i,g> : i in [1..#axes], g in Generators(G0) | axes[i]*g eq axes[Image(g,GSet(G0),i)]};
 
+// The perumtation below is a permutation of the axes of A which preserves the shape.  We show it is an automorphism
+phi := Sym(21)!(1, 16, 10, 11)(2, 4, 12, 14, 20, 21, 8, 7)(3, 5, 18, 13, 15, 9, 6, 17);
+assert IsCoercible(G0,phi) eq false;
+
+Vaxes := sub<VectorSpace(Algebra(A)) | [Vector(x):x in axes]>;
+psi := hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^phi])> : i in [1..21]]>;
+bool, psi_map := ExtendMapToAlgebraAutomorphism(A, psi);
+assert bool;
+assert IsAutomorphism(A, psi_map:generators:=axes);
+// so phi indeed is an automorphism
+
+G := PermutationGroup<21| G0, phi>;
+assert GroupName(G) eq "SO(3,7)";  //Recall that SO(3,7) is isomorphic to PGL(2,7).
+assert Index(G, G0) eq 2;
+
+// Computation 12.18 (a) We show that A has no Jordan axes.
 assert #JordanAxes(A) eq 0;
 
-//Computation 12.18 (b) We show all the axes are in one orbit, and that there are no twins
-axes_reps :=AxisOrbitRepresentatives(A);
+// Computation 12.18 (b) We show all the axes are in one orbit, and that there are no twins
+axes_reps := AxisOrbitRepresentatives(A);
 assert #axes_reps eq 1;
 assert #(FindMultiples(axes_reps[1])) eq 1;
 
 // Computation 12.18 (c)
-Vaxes :=sub<VectorSpace(Algebra(A))|[Vector(x):x in axes]>;
-psi :=hom<Vaxes->VectorSpace(A)|[<Vector(axes[i]), Vector(axes[i^phi])>:i in [1..21]]>;/*Fails incorrectly.*/
-bool,psi_map :=ExtendMapToAlgebraAutomorphism(A,psi);
-assert bool;
-assert IsAutomorphism(A,psi_map:generators:=axes);
+// We find the involutions in G outside G0.
+invs := [x[3] : x in ConjugacyClasses(G) | x[1] eq 2];
+assert #invs eq 2;
+assert exists{ g : g in invs | g in G0}; // One class is in G0
+assert exists(g){ g : g in invs | g notin G0}; // The other is outside G0
+// There is only one class.
+g_Vaxes := hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^g])>:i in [1..21]]>;
+so, g_map := ExtendMapToAlgebraAutomorphism(A, g_Vaxes);
+assert so;
+assert not IsInducedFromAxis(A, g_map);
+// So none of the involutions outside G0 are tua involutions.
 
-/*We've checked that indeed we have constructed an algebra automorphism not induced by an axis.*/
-G :=PermutationGroup<21|G0,phi>;
-assert GroupName(G) eq "SO(3,7)";
-invs :=[x:x in ConjugacyClasses(G)|x[1] eq 2];
-rep_28 :=[x[3]:x in invs|x[2] eq 28][1];/*representative of the class of involutions outside PSL(2,7) */
-psi_28 :=hom<Vaxes->VectorSpace(A)|[<Vector(axes[i]), Vector(axes[i^rep_28])>:i in [1..21]]>;
-bool,psi_28_map :=ExtendMapToAlgebraAutomorphism(A,psi_28);
-assert IsInducedFromAxis(A,Matrix([Eltseq(Vector(A.i)@psi_28_map):i in [1..57]])) eq false; 
-/*We've checked that indeed we have constructed an algebra automorphism not induced by an axis.*/
 
-/*we indeed have the correct manifestations of the group in both permutation and matrix form. Recall that SO(3,7) is isomorphic to PGL(2,7).*/
+// We now set up a decomposition with respect to a set of axes generating 2B algebras pairwise and whose tau involutions generate an elementary abelian group 2^2.
+a := axes[1];
+Y := {@ a @};
+possibles := [x : x in axes | x*a eq A!0 ];
 
-/*We now set up a decomposition with respect to a set of axes generating a 2B algebras pairwise and whose tau involutions generate an elementary abelian group 2^2.*/
+so := true;
+while so do
+  so := exists(b){b : b in possibles | forall{y : y in Y | IsZero(y*b)}};
+  if so then
+    Include(~Y, b);
+  end if;
+end while;
 
-a :=axes[1];
-two_Bs :=[x:x in axes[[2..21]]| x*a eq A!0 ];
-assert #two_Bs gt 2;
-b :=two_Bs[1];
-c :=[x:x in two_Bs[[2..#two_Bs]]| a*x eq A!0 and b*x eq A!0][1];
-Y :={@a,b,c@};
+assert #Y eq 3;
+b := Y[2];
+c := Y[3];
+
 assert Dimension(Subalgebra(A,Y)) eq 3;
 E :=sub<G0_mat|[MiyamotoInvolution(x):x in Y]>;
 assert GroupName(E) eq "C2^2";

@@ -383,6 +383,37 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> AlgGen
   end if;
 end intrinsic;
 
+intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpMat) -> AlgGen
+  {
+  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.
+  }
+  require Dimension(G) eq Dimension(A): "The matrix group G must be in the same dimension as A.";
+  // We should really check whether G is a subgroup of automorphisms of A
+  
+  require U subset Algebra(A): "U must be a subalgebra of A.";
+  
+  V := GModule(G);
+  Umod := sub<V | [Eltseq(A!u) : u in Basis(U)]>;
+  require Dimension(Umod) eq Dimension(U): "U must be G-invariant.";
+  fix := Fix(Umod);
+  
+  return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
+end intrinsic;
+
+intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpPerm) -> AlgGen
+  {
+  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.
+  }
+  if G subset MiyamotoGroup(A) then
+    return FixedSubalgebra(A, U, G@MiyamotoActionMap(A));
+  elif G subset UniversalMiyamotoGroup(A) then
+    _, phi := UniversalMiyamotoGroup(A);
+    return FixedSubalgebra(A, U, (G@phi)@MiyamotoActionMap(A));
+  else
+    error "The permutation group must be a subgroup of the (universal) Miyamoto group.";
+  end if;
+end intrinsic;
+
 intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   {
   Find all Jordan type 1/4 axes contained in the axis algebra A of Monster type (1/4,1/32) with Miyamoto group G.  
@@ -551,7 +582,7 @@ intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map) -> BoolElt, .
 end intrinsic;
 
 // Do We need this version??
-intrinsic ExtendMapToAlgebra(A::Alg, M::AlgMatElt) -> BoolElt, .
+intrinsic ExtendMapToAlgebraAutomorphism(A::Alg, M::AlgMatElt) -> BoolElt, .
   {
   Given a matrix M on a subspace of A, extend this multiplicatively as far as possible.  We return true and the matrix if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
   }
@@ -630,11 +661,15 @@ end intrinsic;
 
 intrinsic IsInducedFromAxis(A::DecAlg, phi::Map: fusion_values:={@1/4, 1/32@}, length:=1, automorphism_check:=true) -> BoolElt, SetIndx//{@ DecAlgElt @}
   {
-	Given a map phi, determine if it is a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
+	Given an involutive map phi, determine if it is a Miyamoto involution for some Monster type axis a.  If true, we return true and the set of axes with the given Miyamoto involution and returns false otherwise.
 	
 	Optional parameters give the length of the axis, defaulting to 1, and the fusion law, defaulting to M(1/4,1/32).  An additional optional parameter checks whether phi is an automorphism.
   }
-  // TO COMPLETE - can just use function below
+  require Dimension(Domain(phi)) eq Dimension(Codomain(phi)) and Dimension(Domain(phi)) eq Dimension(A): "The map given must be to and from the vector space of the algebra.";
+  
+  M := Matrix([ Vector(A.i)@phi : i in [1..Dimension(A)]]);
+
+  return IsInducedFromAxis(A, M: fusion_values:=fusion_values, length:=length, automorphism_check:=automorphism_check);
 end intrinsic;
 
 intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@}, length:=1, automorphism_check:=true) -> BoolElt, SetIndx//{@ DecAlgElt @}
