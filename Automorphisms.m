@@ -222,6 +222,7 @@ intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: extra_rels:=[], extend_fie
   Optional arguments:
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
     extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
+    Default is false.
   }
   F := BaseRing(A);
   n := Dimension(A);
@@ -258,7 +259,7 @@ intrinsic FindAllIdempotents(A::DecAlg, U::ModTupFld: length:=false, extra_rels:
   Optional arguments:
     length - requires the length of the idempotents to be as given
     extra_rels - require the idempotent to satisfy extra relation(s).  These are given by multivariate polynomials in dim(U) variables corresponding to the basis of U.
-    extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.
+    extend_field - if true, then if necessary extend the field to an algebraically closed field to find additional solutions.  Default is false.
   }
   F := BaseRing(A);
   n := Dimension(A);
@@ -594,6 +595,8 @@ end intrinsic;
 intrinsic HasInducedMap(A::AlgGen, M::ModTupFld, phi::Map) -> BoolElt, .
   {
   Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
+  
+  Returns a whether such a map exists and if so, returns a subspace of matrices of all such maps.
   }
   B := Domain(phi);
   require ISA(Type(B), AlgGen): "The domain of the map must be an algebra";
@@ -645,16 +648,22 @@ intrinsic HasInducedMap(A::AlgGen, M::ModTupFld, phi::Map) -> BoolElt, .
   
   null := NullSpace(M);
   
+  // Alter output to be a subspace of matrices
+  
+  space:= MatrixAlgebra<F, m | [ Eltseq(v) : v in Basis(null)]>;
+  
   if Dimension(null) eq 0 then
 		return false,_;
 	else
-		return true, null;
+		return true, space;
 	end if;
 end intrinsic;
 
 intrinsic HasInducedMap(A::DecAlg, M::ModTupFld, phi::Map) -> BoolElt, .
   {
 	Suppose phi is an automorphism of a subalgebra (AlgGen) B of A, and M is a module for B. Try to construct the map psi: M-->M such that (ma)^psi=m^psi*a^phi, for all a in B and m in M.
+  
+  Returns a whether such a map exists and if so, returns a subspace of matrices of all such maps.
   }
 	return HasInducedMap(Algebra(A), M, phi);
 end intrinsic;
