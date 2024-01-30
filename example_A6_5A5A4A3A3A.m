@@ -269,7 +269,7 @@ assert Subalgebra(UAlg, [UAlg!(AA!Vector(t)):t in [t1, t2, t3]]) eq UAlg;
 
 
 // Computation 13.13 
-// In the paper, we recycled the symbols W_i, i:=1, 2, 3, but to distinguish with the current componets, we will use WW_i so WWs
+// In the paper, we recycled the symbols W_i, i:=1, 2, 3, but to distinguish with the current components, we will use WW_i so WWs
 
 WWs := [decomp[x] : x in [<3, 4, 4>,<4, 3, 4>, <4, 4, 3>]];
 id_U := IdentityHomomorphism(UAlg);
