@@ -778,8 +778,7 @@ intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolE
 	ims := [generators[i]*M : i in [1..#generators]];
 	
 	// We use commutativity to reduce work
-	return forall{<i,j> : j in [i..#generators], i in [1..#generators] |
-	                 ims[i]*ims[j] eq (generators[i]*generators[j])*M };
+	 return forall{ i: i in [1..#generators]| forall{ j: j in [i..#generators]|ims[i]*ims[j] eq (generators[i]*generators[j])*M}};
 end intrinsic;
 /*
 
