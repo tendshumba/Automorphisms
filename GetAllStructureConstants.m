@@ -240,8 +240,7 @@ intrinsic TauMap( a::AlgGenElt, T::Tup)->AlgMatElt
 	Eigs:=Eigenvalues(ad_a);
 	vals:=[x[1]:x in Eigs];
 	multiplicities:=[x[2]:x in Eigs];
-	//require forall{x:x in T[1] cat T[2]|x in vals}: "Every element in the tuple components must be an eigenvalue of a";problem if an eigenvalue is missing
-	require forall{x:x in vals|x in T[1] cat T[2]}: "Every element in the tuple components must be an eigenvalue of a";
+	require forall{x:x in vals|x in T[1] cat T[2]}: "Every eigenvalue of a must be in the tuple.";
 	require &+[x:x in multiplicities] eq m: "a must be semi-simple.";
 	I_m:=IdentityMatrix(BaseField(A),m);
 	eigs:=T[1] cat T[2];
@@ -794,7 +793,7 @@ intrinsic IsSubAlgebra(A::AlgGen,V::ModTupFld)->BoolElt
 end intrinsic;
 
 
-intrinsic IsAutomorphic(A::AlgGen,M::Mtrx:gens:=false)->BoolElt
+intrinsic IsAutomorphic(A::AlgGen, M::AlgMatElt: gens :=Basis(A))->BoolElt
 {
   Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if it is an automorphism. 
   Optional input gens, an indexed set of generators.
@@ -803,19 +802,14 @@ intrinsic IsAutomorphic(A::AlgGen,M::Mtrx:gens:=false)->BoolElt
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix must be compatible with A.";
 	require IsInvertible(M): "The provided map is not invertible.";
 	/*as usual we use commutativity to reduce work.*/
-	if Type(gens) ne BoolElt then
+	if #gens ne n then
 		require Type(gens) eq SetIndx: "The generators must be in an indexed set.";
 		require Dimension(SubAlgebra(gens)) eq n: "The given set must generate A.";
-		ims:=[A!((gens[i])*M):i in [1..#gens]];
-		if forall{x:x in gens|x*x-x eq 0} then/*if all gens are idempotents x*x=x so no need to check.*/
-			return forall{i:i in [1..#gens]|forall{j:j in [i+1..#gens]|(ims[i])*(ims[j]) eq A!(((gens[i])*(gens[j]))*M)}};
-		else
-			return forall{i:i in [1..#gens]|forall{j:j in [i..#gens]|(ims[i])*(ims[j]) eq A!(((gens[i])*(gens[j]))*M)}};
-		end if;
-	else
-		ims:=[A!((A.i)*M):i in [1..n]];
-		return forall{i:i in [1..n]|forall{j:j in [i..n]|(ims[i])*(ims[j]) eq A!(((A.i)*(A.j))*M)}};
+		//ims:=[A!((gens[i])*M):i in [1..#gens]]; bad idea. Slows things in large dimensions.
 	end if;
+		ims := [gens[i]*M: i in [1..#gens]];
+		//return forall{i: i in [1..#gens]| forall{j: j in [i..#gens]| (gens[i]*M)*(gens[j]*M) eq ((gens[i])*(gens[j]))*M}};
+		return forall{i: i in [1..#gens]| forall{j: j in [i..#gens]| (ims[i])*(ims[j]) eq ((gens[i])*(gens[j]))*M}};
 end intrinsic;
 intrinsic IsJordanAxis(a::AlgGenElt:eta:=1/4)->BoolElt
 {
