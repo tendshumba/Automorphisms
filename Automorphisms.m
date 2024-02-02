@@ -774,10 +774,10 @@ intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolE
 	// So we use our own Subalgebra command
 	require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
 	
-	//ims := [generators[i]*M : i in [1..#generators]];
+	ims := [generators[i]*M : i in [1..#generators]];
 	
 	// We use commutativity to reduce work
-	return forall{i : i in [1..#generators]| forall{ j : j in [i..#generators] |(gens[i]*M)*(gens[j]*M) eq (gens[i]*gens[j])*M } } where gens is generators;
+	return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] |(ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } } where gens is generators;
 end intrinsic;
 /*
 
