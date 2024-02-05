@@ -255,104 +255,132 @@ end intrinsic;
 + a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
 +                                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt],images::SeqEnum[AlgGenElt]:form:=false)->BoolElt,AlgMatElt
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ This function takes an axial algebra A, and two lists, input, and images, of algebra elements which must be of the same length and ouputs +
++ a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
++                                                                                                                                           +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenElt]: form :=false)->BoolElt,AlgMatElt
 {
 	Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 
 	extend the map as far as possible. If the map extends to the whole algebra, return true and a matrix that gives a multiplicative map A->A
 	where A is the axial algebra in question. If not, return false and the maximum subalgebra (as a vector space) to which the map extends.	
 }
 	require #input eq #images: "The lengths of the input and output lists must be  equal.";
-	A:=Parent(input[1]);
-	require images[1] in A: "Both the preimages and images must be in gthe same algebra.";
-	W:=VectorSpace(A);
+	A := Parent(input[1]);
+	require images[1] in A: "Both the preimages and images must be in the same algebra.";
+	A_W := VectorSpace(A);
 	require IsIndependent(input): "The input list must be independent.";
 	require IsIndependent(images): "The images list must be independent.";/*the perks of using AlgGen.*/
-	dim:=Dimension(A);
+	dim := Dimension(A);
 	if not Type(form) eq BoolElt then
 		require Type(form) eq AlgMatElt: "form must be a matrix";
 		require Nrows(form) eq Ncols(form) and Nrows(form) eq dim: "the form must be compatible with the algebra.";
-		require forall{i:i in [1..#input]|LengthOfElement(input[i],form) eq LengthOfElement(images[i],form)}: "Every element must be a mapped to another element of the same length";
-	require forall{i:i in [1..#input]|forall{j:j in [i..#input]|FrobFormAtElements(input[i],input[j],form) eq FrobFormAtElements(images[i],images[j],form)}}:
+		require forall{i: i in [1..#input]| LengthOfElement(input[i], form) eq LengthOfElement(images[i],form)}: "Every element must be a mapped to another element of the same length";
+	require forall{i:i in [1..#input]| forall{j:j in [i..#input]| FrobFormAtElements(input[i], input[j],form) eq FrobFormAtElements(images[i], images[j],form)}}:
 	"An algebra automorphism must preserve Frobenius form.";
 	end if;	
-	closed:=0;
-	F:=BaseField(A);
-	lst:=[Vector(input[i]):i in [1..#input]];
-	ims:=images;
-	sub:=sub<W|lst>;
-	sub_W:=sub<W|[Vector(x):x in ims]>;
-        bas_W:=Basis(sub_W);
-	m_s:=[1^i:i in [1..#lst]];
-	structs:=[Sprintf("x%o",i):i in [1..#lst]];
-	current:=[1,#lst];
-	new:=[1,#lst];/* we start by making the vectors as nice as possible.*/
-	inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);/*possibly not needed in the new paradigm.*/
-	bas:=Basis(sub);
-	bas:=[Vector(bas[i]):i in [1..#lst]];/*not allowed to coerce into a basis as is.*/
-	bas_mat_W:=Matrix(F,[Eltseq(bas_W[i]):i in [1..#ims]]);
-	nu:=Matrix(F,[Eltseq(Solution(bas_mat_W,[Vector(ims[k]):k in [1..#bas_W]])[i]):i in [1..#lst]]);/*change of basis from the "nicer" to the nastier basis for im phi.*/
-	sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);/*Coordinates of the nicer basis in terms of the older,
-						   "uglier" basis.*/
-	change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
-	lst:=[bas[j] :j in [1..#lst] ];
-	current_map:=change_of_basis_mat*nu;
-	ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
+	closed := 0;
+	F := BaseField(A);
+	lst := [Vector(input[i]):i in [1..#input]];
+	ims := images;
+	V := sub<A_W| lst>;
+	W := sub<A_W| [Vector(x):x in ims]>;
+        // Our map phi is V--> W with the bases in V and W initially being resp inputs and images.
+        m := 1; //For m-closure
+	structs := [Sprintf("x%o",i):i in [1..#lst]];
+	current := [1, #lst];
+	new := [1, #lst];/* we start by making the vectors as nice as possible.*/
+        inps_mat := Matrix(F, [Eltseq(lst[i]):i in [1..#lst]]);
+        bas_V := [Vector(bas[i]):i in [1..#lst]] where bas is Basis(V) ;/*not allowed to coerce into a basis as is.*/
+        nu := Matrix(Solution(BasisMatrix(W), [Vector(ims[k]):k in [1..#bas_V]]));
+        /*change of basis from the "nicer" to the nastier basis for im phi.*/
+	change_of_basis_mat := Matrix(sols) where sols is Solution(inps_mat, bas_V);
+	/*Coordinates of the nicer basis in terms of the older,"uglier" basis.*/
+	lst := [bas_V[j] : j in [1..#lst]];
+	current_map := change_of_basis_mat*nu;
+	ims := [A!(&+[current_map[j][i]*bas_V[i]: i in [1..#lst]]):j in [1..#lst]];
+
 	while closed eq 0 do
-		for i:=current[1] to current[2] do
-			for j:=new[1] to new[2] do
-				if not i gt j then/*idea here is that multiplication is commutative for axial algebras so v_i*v_j=v_j*v_i.*/
-					w:=Vector((A!lst[i])*(A!lst[j]));
- 		 			if w in sub then
-		 				mat_inps:=Matrix(F,[Eltseq(lst[k]):k in [1..#lst]]);
-			 			sol:=Solution(mat_inps,w);
-			 			im:=&+[sol[k]*ims[k]:k in [1..#lst]];
-			 			if not im eq ims[i]*ims[j] then
-				 			printf(" %o, %o not multiplicative\n"),i,j;
-                                 			return false,_;
-			 			end if;
-					 else
-						Append(~lst,w);
-						sub+:=sub<W|w>;
-						Append(~m_s,m_s[i]+m_s[j]);
-						Append(~structs,Sprintf("(%o)(%o)",structs[i],structs[j]));
-						Append(~ims,ims[i]*ims[j]);
-                        		end if;
-				end if;
-			end for;
+		prods := [ Vector((A!lst[i])*(A!lst[j])) : i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
+                im_prods := [ ims[i]*ims[j]: i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
+          //use these products to update V and W.
+                V +:= sub<A_W| prods>;
+                W +:= sub<A_W| [Vector(x): x in im_prods]>;
+		n_d := Dimension(V);
+                         
+                if Dimension(W) ne n_d then
+			 print "The map cannot be extended to an algebra automorphism.";
+                	 return false, _;
+                end if;
+
+	// extend lst to a basis of V (new) using products, and the same for ims and W.
+                used_prods := [];
+                used_ims := [];
+                outside_prod_inds := [];
+                sub_dom := sub<A_W| lst>;
+	        for i :=1 to #prods do
+			if prods[i] notin sub_dom then
+				Append(~ used_prods, prods[i]);
+                                Append(~used_ims, im_prods[i]);
+			        sub_dom +:= sub<A_W|prods[i]>;
+                                Append(~outside_prod_inds, i);
+			end if;
+			if Dimension(sub_dom) eq n_d then
+                        	break i;
+			end if;
 		end for;
+                if not IsEmpty(outside_prod_inds) then
+			if new eq current then
+				m := 2;
+                	elif exists{ind: ind in outside_prod_inds| ind gt current[2]*(new[2]-new[1]+1)} then
+                        	m := 2*m;
+		    	else
+            			m := 2*m-1;
+                	end if;
+		end if;
+	//Rationale here is that if we had to include products of new vectors amongst themselves, that doubles m.
+	
+	// Check the products ab of vectors in the current domain which remain there for consistency, i.e., (a^phi)*(b^phi)=(ab)^phi
+                lst cat:= used_prods;
+                ims cat:= used_ims;
+                inside_prod_inds := [i: i in [1..#prods]| i notin outside_prod_inds ];
+                mat := Matrix(lst);
+                coordinates := Solution(mat, prods[inside_prod_inds]);
+	//images_inside_prods := [&+[coordinates[i][j]*ims[j]: j in [1..#lst]]: i in [1..#inside_prod_inds]];
+                if not images_inside_prods eq im_prods[inside_prod_inds] where  images_inside_prods is [&+[coordinates[i][j]*ims[j]: j in [1..#lst]]: i in [1..#inside_prod_inds]] then
+	       		print "The given map is not multiplicative";
+                	 return false, _;
+                end if;
+
+	// Now, make the bases in V and W as nice as possible, and produce the new map with respect to these nice bases. Update
 		printf("It is %o that the images and preimages are of the same cardinality\n"), #ims eq #lst;
-		bas:=Basis(sub);
-		bas:=[Vector(bas[i]):i in [1..#bas]];
-		inps_mat:=Matrix(F,[Eltseq(lst[i]):i in [1..#lst]]);
-		sols:=Solution(inps_mat,[bas[i]:i in [1..#lst]]);
-		change_of_basis_mat:=Matrix([Eltseq(sols[i]):i in [1..#lst]]);
-		sub_W:=sub<W|[Vector(x):x in ims]>;
-        	bas_W:=Basis(sub_W);
-		bas_mat_W:=Matrix(F,[Eltseq(bas_W[i]):i in [1..#ims]]);
-		nu:=Matrix(F,[Eltseq(Solution(bas_mat_W,[Vector(ims[k]):k in [1..#bas_W]])[i]):i in [1..#lst]]);/*change of basis from the "nicer" to the nastier basis for im phi.*/
-		current_map:=change_of_basis_mat*nu;
-		lst:=[bas[j] :j in [1..#lst] ];
-		/*ims_coords:=[rows of current map because each basis vector in bas is e_i relative to bas, according to their order.*/
-		ims:=[A!(&+[current_map[j][i]*bas[i]:i in [1..#lst]]):j in [1..#lst]];
+		bas_V := [Vector(bas[i]) : i in [1..#bas]] where bas is Basis(V) ;
+                change_of_basis_mat := Matrix(Solution(mat, bas_V)); 
+                nu := Matrix(Solution(BasisMatrix(W), [Vector(ims[i]) : i in [1..#ims]]));/*change of basis from the "nicer" to the nastier basis for im phi.*/
+		current_map := change_of_basis_mat*nu;
+		lst := [bas_V[j] : j in [1..#lst] ];
+		/*ims_coords:=[rows of current map because each basis vector in bas is e_i (nice, not unit necessarily) relative to bas, according to their order.*/
+		ims := [A!(&+[current_map[j][i]*bas_V[i] : i in [1..#lst]]): j in [1..#lst]];
 		if #lst eq current[2] then
-		       	closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
-			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
-		elif #lst eq dim then
-			closed+:=1;/*here the checks below are necessary only if #lst eq dim. Deal with this case separately.*/
-			printf("multiplication is now closed with minimum %o-closure \n"),Maximum(m_s);
+		       	closed +:= 1;
+			printf("multiplication is now closed with minimum %o-closure \n"), m;
+                elif #lst eq dim then// I wonder if removing this branch will make a difference?
+			closed +:= 1;
+			printf("multiplication is now closed with minimum %o-closure \n"), m;
 		else
 			/*update new and current.*/
-		       	new:=[current[2]+1,#lst];
-			current:=[1,#lst];
-			printf("current dimension is %o\n"),#lst;
+		       	new := [current[2]+1, #lst];
+			current := [1, #lst];
+			printf("current dimension is %o\n"), #lst;
 		end if;
 	end while;
 	if #lst lt dim then
-		return false,sub;
+		return false, V;
 	end if;;
 	return true, current_map;
 end intrinsic;
-
 intrinsic JointEigenspaceDecomposition(L::SetIndx[AlgGenElt]) -> Assoc
   {
   Given an indexed set of axes L = \{ a_1, ..., a_n\}, decompose the algebra into joint eigenspaces for these axes.  Returns an associative array where the element A_lm_1(a_1) \cap ... \cap A_lm_n(a_n) has keys give by the set of eigenvalues \{ lm_1, ..., lm_n \}.
@@ -668,28 +696,11 @@ intrinsic SubAlgebra(L::SetIndx[AlgGenElt] )->ModTupFld
 	if #L eq 1 and W!0 in lst then
 		return sub<W|W!0>;
 	end if;
-	/* we start by finding a maximally independent set.*/ 
-	max_independent_set:=[];
-	non_zero:=[];
-	for i:=1 to #L do
-		if lst[i] ne W!0 then
-			Append(~non_zero,lst[i]);
-		end if;
-	end for;
-	V:=sub<W|non_zero[1]>;
-	if #non_zero eq 1 then 
-		max_independent_set:=non_zero;
-	else 
-		Append(~max_independent_set, non_zero[1]); 
-		for i:=2 to #non_zero do
-			if not non_zero[i] in V then
-				Append(~max_independent_set, non_zero[i]);
-				V+:=sub<W|non_zero[i]>;
-			end if;
-		end for;	
-	end if;
+	/* we start by finding a maximally independent set.*/
+        V := sub<W| lst>;	
+	max_independent_set:=[bas[i] : i in [1..Dimension(V)]] where bas is Basis(V);
 	max_independent_set:=[A!x:x in max_independent_set];
-	bool,VV:=ExtendMapToAlgebra(max_independent_set, max_independent_set);
+	bool, VV := ExtendMapToAlgebra(max_independent_set, max_independent_set);
 	if bool eq true then 
 		return W;
 	else
@@ -805,12 +816,23 @@ intrinsic IsAutomorphic(A::AlgGen, M::AlgMatElt: gens :=Basis(A))->BoolElt
 	if #gens ne n then
 		require Type(gens) eq SetIndx: "The generators must be in an indexed set.";
 		require Dimension(SubAlgebra(gens)) eq n: "The given set must generate A.";
-		//ims:=[A!((gens[i])*M):i in [1..#gens]]; bad idea. Slows things in large dimensions.
 	end if;
-		ims := [gens[i]*M: i in [1..#gens]];
-		//return forall{i: i in [1..#gens]| forall{j: j in [i..#gens]| (gens[i]*M)*(gens[j]*M) eq ((gens[i])*(gens[j]))*M}};
-		return forall{i: i in [1..#gens]| forall{j: j in [i..#gens]| (ims[i])*(ims[j]) eq ((gens[i])*(gens[j]))*M}};
+	ims := [gens[i]*M: i in [1..#gens]];
+	
+	// We use commutativity to reduce work
+	if #gens lt n then
+		if forall{ x: x in gens| x in Basis(A) } then
+			inds := [Position(Basis(A), gens[i]): i in [1..#gens]];
+			return forall{i: i in [1..#gens]| forall{j : j in [i..#gens]| (ims[i]*ims[j]) eq (prods[inds[i]][inds[j]])*M}} where prods is BasisProducts(A);
+		else
+			return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] | (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } };
+		end if;
+	else
+		return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens]| (ims[i])*(ims[j]) eq (prods[i][j])*M}} where prods is BasisProducts(A);
+		//return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens]| (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M}};
+	end if;
 end intrinsic;
+
 intrinsic IsJordanAxis(a::AlgGenElt:eta:=1/4)->BoolElt
 {
 	Given an algebra element a, determine if it is a Jordan type eta axis. The default vaue 
