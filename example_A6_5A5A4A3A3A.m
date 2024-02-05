@@ -4,6 +4,7 @@
 The example for A_6 5A5A4A3A3A
 
 */
+//SetSeed(1);
 AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
@@ -21,7 +22,7 @@ Attach("Automorphisms.m");
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 */
 
-SetSeed(1);
+//SetSeed(1);
 /*Preliminary data.*/
 A := LoadDecompositionAlgebra("5A5A4A3A3A_sub.json");
 F := BaseRing(A);
@@ -64,8 +65,10 @@ time out_maps := [out_map where bool, out_map := ExtendMapToAlgebraAutomorphism(
 assert forall{out_map: out_map in out_maps| IsAutomorphism(A, out_map: generators:=axes)};
 assert #out_maps eq 2;
 // Both outer automorphisms do indeed induce algebra automorphims.
-G := PermutationGroup<45| G0, outs[1]>;
-assert GroupName(G) eq "S6";
+bool:= exists(o){out: out in outs|GroupName(PermutationGroup<45|G0, out>) eq "S6"};
+assert bool;
+G := PermutationGroup<45| G0, o>;
+//assert GroupName(G) eq "S6"; Now not necessary by construction of G.
 
 // Computation 13.1 (c) We will show that the involutions from G=S_6 are not induced by axes. We could actually combine this with Computation 13.2. 
 // We seek the involutions of G outside G0
@@ -83,7 +86,7 @@ assert forall{func: func in outer_gmaps|not IsInducedFromAxis(A, func) };
 
 // Computation 13.2
 // We will call the group G^\circ in the paper G_c
-G_c := PermutationGroup<45| G, outs[2]>;
+G_c := PermutationGroup<45| G, [x: x in outs| x ne o][1]>;
 assert GroupName(G_c) eq "S6.C2";
 
 // We want involutions in G_c\ G.
@@ -161,7 +164,7 @@ assert forall{x:x in  [<2, 4, 4>,<4, 2, 4>, <4, 4, 2>]|Dimension(decomp[x]) eq 2
 /* We turn to determining Aut(U).*/
 
 
-UAlg, U_inc :=Subalgebra(A,Basis(U));
+UAlg, U_inc := Subalgebra(A, Basis(U));
 
 // Computation 13.4
 
@@ -265,7 +268,7 @@ assert forall{ i: i in [1..2]| forall{j :j in [i+1..3]|Frobenius(ts[i], ts[j]) i
 
 // Computation 13.10 (b) The t_is generate U.
 
-assert Subalgebra(UAlg, [UAlg!(AA!Vector(t)):t in [t1, t2, t3]]) eq UAlg;
+assert Subalgebra(UAlg, [UAlg!(AA!Vector(t)):t in ts]) eq UAlg;
 
 
 // Computation 13.13 
@@ -296,5 +299,8 @@ assert forall{w: w in w_s| Frobenius(w*w, u) ne 0};
 
 // Computation 13.14 (b) (w_1*w_2, w_3) nonzero
 assert Frobenius(w_s[1]*w_s[2], w_s[3]) ne 0;
+
+
+
 
 
