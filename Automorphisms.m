@@ -772,12 +772,24 @@ intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolE
 	
 	// Magma's sub command has a bug for non-associative algebras
 	// So we use our own Subalgebra command
-	require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
-	
+	// It is only necessary to check generators which are not a basis of A.
+	if not (IsIndependent(generators) and #generators eq n) then
+		require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
+	end if;
+	// pre-compute the images 
 	ims := [generators[i]*M : i in [1..#generators]];
 	
 	// We use commutativity to reduce work
-	return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] |(ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } } where gens is generators;
+	if #generators lt n then
+		if forall{ x: x in generators| x in Basis(A) } then
+			inds := [Position(Basis(A), generators[i]): i in [1..#generators]];
+			return forall{i: i in [1..#generators]| forall{j : j in [i..#generators]| (ims[i]*ims[j]) eq (prods[inds[i]][inds[j]])*M}} where prods is BasisProducts(A);
+		else
+			return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] | (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } } where gens is generators;
+		end if;
+	else
+		return forall{i : i in [1..#generators]| forall{ j : j in [i..#generators]| (ims[i])*(ims[j]) eq (prods[i][j])*M}} where prods is BasisProducts(A);
+	end if;
 end intrinsic;
 /*
 
