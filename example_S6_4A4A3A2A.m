@@ -9,7 +9,7 @@ AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
-Attach("/home/tendai/coding_wip.txt");
+Attach("/home/tendai/Subalgebra_1.m");
 
 /*
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
