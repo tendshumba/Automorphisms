@@ -513,82 +513,110 @@ Functions to extend an automorphism of a subalgebra to an automorphism of the wh
 
 */
 // ExtendMapToAlgebra
-intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map) -> BoolElt, .
+intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map: check_automorphism:=true) -> BoolElt, .
   {
-  Given a bijective map phi:B -> A on a subspace B of A, try to extend this to an automorphism of the algebra, by using the algebra multiplication.  We return true and the map if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
+  Given a bijective map phi:B -> A on a subspace B of A, try to extend this to an automorphism of the algebra, by using the algebra multiplication.  We return true and the map if it does extend to the whole of A.  If not, we return false and the map on the largest subalgebra to which it extends.  Otherwise, we return false.
+  
+  Optional argument to check for the map being an automorphism.  Default is true.  This can take some time.
   }
-  B := Domain(phi);
-  require ISA(Type(B), ModTupFld): "The domain of the map must be a subspace of A";
-  require B subset VectorSpace(A): "B must be a subspace of A.";
+  D := Domain(phi);
+  I := Image(phi);
+  
+  require ISA(Type(D), ModTupFld): "The domain of the map must be a subspace of A";
+  require D subset VectorSpace(A): "B must be a subspace of A.";
   require Codomain(phi) eq VectorSpace(A): "The image of the map must be in A.";
-  require Dimension(Image(phi)) eq Dimension(B): "The map must be bijective.";
+  require Dimension(I) eq Dimension(D): "The map must be bijective.";
+
+  // We extend the map by taking successive products of elements in the domain and at each stage defining phi(ab) to be equal to phi(a)*phi(b)
+  // At each stage, let D be the domain and I be the image.
   
-  // should check for any contradiction to being an automorphism in phi already.
-  // Maybe 
-  
+  // For each of the domain and the image, we have a space of D_old where we have taken the products
+  Aalg := Algebra(A);
   V := VectorSpace(A);
-  old_bas := [V|];
-  new_bas := Basis(B);
-  old_im := [V|];
-  new_im := [ phi(b) : b in new_bas];
-  psi := phi;
+  Dold := sub<V|>;
+  Iold := sub<V|>;
   
-  closed := false;
+  // Take bases for D and Dold.  Extend a basis of D to a basis of Dold and call the extra elements D_new_bas.
+  D_bas := Basis(D);
+  Dnew_bas := D_bas;
   
-  // we will extend our map phi to psi in stages
-  // at each stage, we will take a,b in the domain of the current map psi
-  // define psi(ab) to be psi(a)*psi(b)
-  // if ab is in the domain of psi already, then this must agree, or we have a contradiction.
-  // otherwise this terminates when the domain is closed.
-  while not closed do
-    // we only need to take products we haven't seen before
-    // ie products old_bas with new_bas and new_bas with new_bas
-    map_dom := Domain(psi);
+  // Initialise M to be the matrix representing the extended phi wrt the bases D_bas and I_bas.
+  M := Matrix(D_bas@phi);
+  I_bas := Rows(M);
+  Inew_bas := I_bas;
+  
+  // We can exit when there are no more products to be calculated, or we have extended to the whole algebra
+  while #Dnew_bas ne 0 and Dimension(D) ne Dimension(V) do
+    // It is more convenient to have the bases as vectors and not elements of the algebra
+    // We find the products of elements in the domain and image.
+    Dprods := BulkMultiply(ChangeUniverse(D_bas, Aalg), ChangeUniverse(Dnew_bas, Aalg));
+    Iprods := BulkMultiply(ChangeUniverse(I_bas, Aalg), ChangeUniverse(Inew_bas, Aalg));
+    Dprods := ChangeUniverse(Flat(Dprods), V);
+    Iprods := ChangeUniverse(Flat(Iprods), V);
     
-    newprods := [];
-    im_newprods := [];
+    // Update the subspaces and bases
+    Dold := D;
+    D +:= sub<V | Dprods>;
+    Iold := I;
+    I +:= sub<V | Iprods>;
     
-    for i -> a in (old_bas cat new_bas), j -> b in new_bas do
-      ab := Vector(A!a*A!b);
-      im_ab := Vector(A!((old_im cat new_im)[i])*A!new_im[j]);
-      
-      if ab in map_dom and ab@psi ne im_ab then
-        print("The map cannot be extended to an automorphism.");
-        return false, _;
+    // Find which products were needed
+    // This seems quicker here than doing row echelon form
+    
+    index := [];
+    extra_sub := Dold;
+    num_needed := Dimension(D) - Dimension(Dold);
+    i := 1;
+    while #index lt num_needed do
+      // could also use IsIndependent here
+      if Dprods[i] notin extra_sub then
+        extra_sub +:= sub<V|Dprods[i]>;
+        Append(~index, i);
       end if;
-      // hence it is ok.
-      
-      Append(~newprods, ab);
-      Append(~im_newprods, im_ab);
-    end for;
+      i +:= 1;
+    end while;
+    used_prods := Dprods[index];
+    used_im := Iprods[index];
     
-    // Now need to pick a basis for the new space of new products
-    old_bas cat:= new_bas;
-    old_im cat:= new_im;
-    index := CompleteToBasis(old_bas, newprods);
-    new_bas := newprods[index];
-    new_im := im_newprods[index];
+    // So a bad basis for the domain D is
+    prods_basis := D_bas cat used_prods;
+        
+    // Pick a new basis for D.  This makes the products faster on the domain side as they will be sparser.
+    D_bas := Basis(D);
+
+    // Need to define the map
+    // This is given by a change of basis from new, to the old basis for D
+    // composed with the map from the old basis to the images
     
-    bas := old_bas cat new_bas;
-    im := old_im cat new_im;
-    assert #bas eq #im;
+    dom_CoB := Matrix(Solution(Matrix(prods_basis), D_bas));
+    M := dom_CoB*VerticalJoin(M, Matrix(used_im));
     
-    psi := hom<sub<V|bas> -> V | [<bas[i], im[i]> : i in [1..#bas]]>;
-    
-    // if there no new products, then the domain is closed.
-    closed := #index eq 0;
+    Dnew_bas := ExtendBasis(Dold, D)[Dimension(Dold)+1..Dimension(D)];        
+    // Update the basis for I
+    I_bas := Rows(M);
+    Inew_bas := Rows(Matrix(Dnew_bas)*M);
   end while;
+
+  psi := hom<D -> D | v :-> v*M, y :-> y*M^-1>;
+
+  // Need to check the matrix is an automorphism
+  if check_automorphism eq true then
+    so := IsAutomorphism(A, psi: generators:=Basis(Domain(phi)));
+    if not so then
+      print "The map when extended is not an automorphism.";
+      return false, _;
+    end if;
+  end if;
   
-  return true, psi;
+  // Check whether we have extended all the way
+  // NB the map automatically extends phi
+  if #D_bas eq Dimension(V) then
+    return true, psi;
+  else
+    return false, psi;
+  end if;
 end intrinsic;
 
-// Do We need this version??
-intrinsic ExtendMapToAlgebraAutomorphism(A::Alg, M::AlgMatElt) -> BoolElt, .
-  {
-  Given a matrix M on a subspace of A, extend this multiplicatively as far as possible.  We return true and the matrix if it does extend to the whole of A.  If not, we return false and the largest subalgebra to which it extends.
-  }
-  
-end intrinsic;
 
 // ExtendAutToMod
 // How do we give the map phi??? as a map to a matrix?
@@ -762,34 +790,24 @@ intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolE
 	n := Dimension(A);
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
 	require IsInvertible(M): "The provided map is not invertible.";
-	
-	// Can remove this in future, by editing the code below
-	require IsCommutative(A): "We currently require the algebra to be commutative.";
-	
+		
 	require Type(generators) eq SeqEnum: "The generators must be in a sequence.";
 	so, generators := CanChangeUniverse(generators, A);
 	require so: "The generators must be coercible into the algebra.";
 	
 	// Magma's sub command has a bug for non-associative algebras
 	// So we use our own Subalgebra command
-	// It is only necessary to check generators which are not a basis of A.
-	if not (IsIndependent(generators) and #generators eq n) then
-		require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
-	end if;
-	// pre-compute the images 
+	require Dimension(Subalgebra(A, generators)) eq n: "The given set must generate A.";
+	
+	// pre-compute the images
 	ims := [generators[i]*M : i in [1..#generators]];
 	
-	// We use commutativity to reduce work
-	if #generators lt n then
-		if forall{ x: x in generators| x in Basis(A) } then
-			inds := [Position(Basis(A), generators[i]): i in [1..#generators]];
-			return forall{i: i in [1..#generators]| forall{j : j in [i..#generators]| (ims[i]*ims[j]) eq (prods[inds[i]][inds[j]])*M}} where prods is BasisProducts(A);
-		else
-			return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] | (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } } where gens is generators;
-		end if;
-	else
-		return forall{i : i in [1..#generators]| forall{ j : j in [i..#generators]| (ims[i])*(ims[j]) eq (prods[i][j])*M}} where prods is BasisProducts(A);
-	end if;
+  // Using BulkMultiply is much faster, even if we can't exploit commutativity usefully                  
+	gen_prods := BulkMultiply(generators, generators);
+	ims_prods := BulkMultiply(ims, ims);
+	ims_mats := [ Matrix(x) : x in ims_prods];
+	gen_mats := [ Matrix(x)*M : x in gen_prods];
+	return gen_mats eq ims_mats; 
 end intrinsic;
 /*
 

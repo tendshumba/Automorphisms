@@ -4,27 +4,25 @@
 The example for A_6 5A5A4A3A3A
 
 */
-//SetSeed(1);
+/*
 AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
+*/
 
-/*
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
 Attach("Automorphisms.m");
-*/
 
 // Alter this to the path of where your algebra is stored
-/*
-path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
-*/
 
-//SetSeed(1);
+path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
+
+
 /*Preliminary data.*/
-A := LoadDecompositionAlgebra("5A5A4A3A3A_sub.json");
+A := LoadDecompositionAlgebra(path cat "A6/45/5A5A4A3A3A_sub.json");
 F := BaseRing(A);
 n := Dimension(A);
 G0 := MiyamotoGroup(A);
@@ -52,17 +50,18 @@ Miy_elts := [MiyamotoElement(A, i): i in [1..#axes]];
 aut := AutomorphismGroup(G0);
 assert GroupName(OuterFPGroup(aut)) eq "C2^2";
 // Thus the outer automorphism has 2 generators. The first gives S_6, while adding the second gives the full automorphism.
-outs:={@ x: x in Generators(aut)| not IsInnerAutomorphism(x) @};
+
+outs := {@ x: x in Generators(aut)| not IsInnerAutomorphism(x) @};
 assert #outs eq 2;
-outs := [Sym(#axes)![ Position(Miy_elts, Miy_elts[i]@outs[j]):i in [1..#axes]]: j in [1,2]];
+outs := [ Sym(#axes)![ Position(Miy_elts, Miy_elts[i]@outs[j]) : i in [1..#axes]] : j in [1,2]];
 // Thus it is clear that Aut(G0) is A6.C2^2
 
 // We check that each out is indeed an automorphism of A. 
-Vaxes := sub<VectorSpace(Algebra(A)) | [Vector(x):x in axes]>;
-out_maps := [hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^outs[j]])> : i in [1..45]]>: j in [1..2]];
+Vaxes := sub<VectorSpace(A) | [Vector(x) : x in axes]>;
+out_maps := [ hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^outs[j]])> : i in [1..45]]>: j in [1..2]];
 time out_maps := [out_map where bool, out_map := ExtendMapToAlgebraAutomorphism(A, out_maps[i]): i in [1..2]];
 //assert bool;
-assert forall{out_map: out_map in out_maps| IsAutomorphism(A, out_map: generators:=axes)};
+assert forall{out_map : out_map in out_maps | IsAutomorphism(A, out_map: generators:=axes)};
 assert #out_maps eq 2;
 // Both outer automorphisms do indeed induce algebra automorphims.
 bool:= exists(o){out: out in outs|GroupName(PermutationGroup<45|G0, out>) eq "S6"};
@@ -127,8 +126,8 @@ assert GroupName(N) eq "C2*S4";
 
 
 // Computation 13.3 Details of the decomposition. Here a_1=a, a_2=b and a_3=c.
-YD :={@Decomposition(x): x in Y@};
-decomp :=JointPartDecomposition(YD);
+YD := {@ Decomposition(x): x in Y @};
+decomp := JointPartDecomposition(YD);
 /*note here that the keys of the decomposition are indexed by the tuples <i,j,k> where
   1\le i,j,k\le 4 with 1:->1,0:->2, 1/4:->3 and 1/32:->4.*/
 
@@ -164,7 +163,7 @@ assert forall{x:x in  [<2, 4, 4>,<4, 2, 4>, <4, 4, 2>]|Dimension(decomp[x]) eq 2
 /* We turn to determining Aut(U).*/
 
 
-UAlg, U_inc := Subalgebra(A, Basis(U));
+UAlg, U_inc :=Subalgebra(A,Basis(U));
 
 // Computation 13.4
 
@@ -299,8 +298,5 @@ assert forall{w: w in w_s| Frobenius(w*w, u) ne 0};
 
 // Computation 13.14 (b) (w_1*w_2, w_3) nonzero
 assert Frobenius(w_s[1]*w_s[2], w_s[3]) ne 0;
-
-
-
 
 
