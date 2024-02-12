@@ -9,7 +9,7 @@ AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
-Attach("/home/tendai/Subalgebra_1.m");
+Attach("/home/tendai/coding_wip.txt");
 
 /*
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
@@ -129,7 +129,7 @@ Gc_mat := MatrixGroup<151, F| autG_mat, sigma_d>;
 // However, at this stage this group has 7 generators, which makes it not fast to work with. We can reduce the generators or use the permutation representation below.
 
 Gc_perm := PermutationGroup<106|[ [Position(all_axes, A!(Vector(all_axes[i])*Matrix(x))): i in [1..106]]:x in Generators(Gc_mat)]>;
-assert GroupName(Gc_perm) eq "C2*A6.C2^2";// recall that Aut(S_6)=Aut(A_6) is isomorphic to A_6.C_2^2 so this is C2xAut(A_6).
+assert GroupName(Gc_perm) in {"C2*A6.C2^2", "C2*S6.C2"};// recall that Aut(S_6)=Aut(A_6) is isomorphic to A_6.C_2^2 so this is C2xAut(A_6).
 
 // Computation 13.26
 evals, espaces, fus_law := IdentifyFusionLaw(d);// we know the fusion law already, so what we really want are the eigenspaces.
