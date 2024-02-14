@@ -718,8 +718,7 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@
   n := Dimension(A);
 	require Nrows(M) eq n and Ncols(M) eq n: "The matrix M must be a sqaure matrix of size equal to dimension of the algebra.";
 	F := BaseField(A);
-	I_n := IdentityMatrix(F, n);
-	require M^2 eq I_n and M ne I_n: "The given matrix is not involutive.";
+	require IsIdentity(M^2) and not IsIdentity(M): "The given matrix is not involutive.";
 	
 	so, MM := CanChangeRing(M, F);
 	require so : "The entries of M must be over the same field as A, or should be coercible into the base field of A.";
