@@ -64,7 +64,8 @@ time out_maps := [out_map where bool, out_map := ExtendMapToAlgebraAutomorphism(
 assert forall{out_map : out_map in out_maps | IsAutomorphism(A, out_map: generators:=axes)};
 assert #out_maps eq 2;
 // Both outer automorphisms do indeed induce algebra automorphims.
-bool:= exists(o){out: out in outs|GroupName(PermutationGroup<45|G0, out>) eq "S6"};
+//bool := exists(o){out: out in outs|GroupName(PermutationGroup<45|G0, out>) eq "S6"};
+bool := exists(o){out: out in outs|IsIsomorphic(PermutationGroup<45|G0, out>, Sym(6)) };
 assert bool;
 G := PermutationGroup<45| G0, o>;
 //assert GroupName(G) eq "S6"; Now not necessary by construction of G.
