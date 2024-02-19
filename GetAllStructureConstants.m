@@ -261,7 +261,7 @@ end intrinsic;
 + a boolean value as well as either a map in matrix form or a subalgebra if the map does not extend to the full space.                      +
 +                                                                                                                                           +
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenElt]: form :=false)->BoolElt,AlgMatElt
+intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenElt]: form :=false, check_automorphism := true, generators := Basis(Parent(input[1])))->BoolElt,AlgMatElt
 {
 	Given two indexed sets of axial algebra elements, the first with preimages and the second containing the corresponding images, 
 	extend the map as far as possible. If the map extends to the whole algebra, return true and a matrix that gives a multiplicative map A->A
@@ -303,8 +303,15 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenEl
 	ims := [A!(&+[current_map[j][i]*bas_V[i]: i in [1..#lst]]):j in [1..#lst]];
 
 	while closed eq 0 do
-		prods := [ Vector((A!lst[i])*(A!lst[j])) : i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
-                im_prods := [ ims[i]*ims[j]: i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
+		//prods := [ Vector((A!lst[i])*(A!lst[j])) : i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
+		if current eq new then 
+			prods := ([Vector(prods[i]) : i in [1..#prods]])[[#lst*(i-1)+j: i, j in [1..#lst]| i le j]] where prods is BatchMultiply ([A!lst[i] : i in [1..#lst]]);
+			im_prods := BatchMultiply(ims)[[#lst*(i-1)+j : i, j in [1..#lst]| i le j]];
+		else 
+			prods := [Vector(prods[i]) : i in [1..#prods]] where prods is BatchMultiply([A!lst[i] : i in [1..new[1]-1]], [A!lst[i] : i in [new[1]..new[2]]]) cat (BatchMultiply([A!lst[i]: i in [new[1]..new[2]]]))[[l*(i-1)+j : i, j in [1..l]| i le j]] where l is new[2]- new[1]+1;
+			im_prods := BatchMultiply(ims[[1..new[1]-1]], ims[[new[1]..new[2]]]) cat (BatchMultiply(ims[[new[1]..new[2]]]))[[l*(i-1)+j : i, j in [1..l] | i le j]] where l is new[2]-new[1]+1;
+		end if;
+                //im_prods := [ ims[i]*ims[j]: i in [current[1]..current[2]], j in [new[1]..new[2]]|i le j];
           //use these products to update V and W.
                 V +:= sub<A_W| prods>;
                 W +:= sub<A_W| [Vector(x): x in im_prods]>;
@@ -332,32 +339,20 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenEl
 			end if;
 		end for;
                 if not IsEmpty(outside_prod_inds) then
-			if new eq current then
-				m := 2;
+		       	if current eq new then
+			   m := 2;
                 	elif exists{ind: ind in outside_prod_inds| ind gt current[2]*(new[2]-new[1]+1)} then
                         	m := 2*m;
 		    	else
             			m := 2*m-1;
                 	end if;
 		end if;
-	//Rationale here is that if we had to include products of new vectors amongst themselves, that doubles m.
-	
-	// Check the products ab of vectors in the current domain which remain there for consistency, i.e., (a^phi)*(b^phi)=(ab)^phi
                 lst cat:= used_prods;
                 ims cat:= used_ims;
-                inside_prod_inds := [i: i in [1..#prods]| i notin outside_prod_inds ];
-                mat := Matrix(lst);
-                coordinates := Solution(mat, prods[inside_prod_inds]);
-	//images_inside_prods := [&+[coordinates[i][j]*ims[j]: j in [1..#lst]]: i in [1..#inside_prod_inds]];
-                if not images_inside_prods eq im_prods[inside_prod_inds] where  images_inside_prods is [&+[coordinates[i][j]*ims[j]: j in [1..#lst]]: i in [1..#inside_prod_inds]] then
-	       		print "The given map is not multiplicative";
-                	 return false, _;
-                end if;
-
 	// Now, make the bases in V and W as nice as possible, and produce the new map with respect to these nice bases. Update
 		printf("It is %o that the images and preimages are of the same cardinality\n"), #ims eq #lst;
 		bas_V := [Vector(bas[i]) : i in [1..#bas]] where bas is Basis(V) ;
-                change_of_basis_mat := Matrix(Solution(mat, bas_V)); 
+                change_of_basis_mat := Matrix(Solution(Matrix(lst), bas_V)); 
                 nu := Matrix(Solution(BasisMatrix(W), [Vector(ims[i]) : i in [1..#ims]]));/*change of basis from the "nicer" to the nastier basis for im phi.*/
 		current_map := change_of_basis_mat*nu;
 		lst := [bas_V[j] : j in [1..#lst] ];
@@ -366,7 +361,7 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenEl
 		if #lst eq current[2] then
 		       	closed +:= 1;
 			printf("multiplication is now closed with minimum %o-closure \n"), m;
-                elif #lst eq dim then// I wonder if removing this branch will make a difference?
+                elif #lst eq dim then
 			closed +:= 1;
 			printf("multiplication is now closed with minimum %o-closure \n"), m;
 		else
@@ -378,48 +373,60 @@ intrinsic ExtendMapToAlgebra(input::SeqEnum[AlgGenElt], images::SeqEnum[AlgGenEl
 	end while;
 	if #lst lt dim then
 		return false, V;
-	end if;;
-	return true, current_map;
+	end if;
+        if check_automorphism eq true then
+	       bool := IsAutomorphic(A, current_map: gens := IndexedSet(generators));
+               if bool then
+	            return true, current_map;
+               else
+      	            print "The map is not automorphic";
+                    return false, _;
+               end if;
+       else
+		 return true, current_map;
+      end if;
 end intrinsic;
+
+
 intrinsic JointEigenspaceDecomposition(L::SetIndx[AlgGenElt]) -> Assoc
   {
   Given an indexed set of axes L = \{ a_1, ..., a_n\}, decompose the algebra into joint eigenspaces for these axes.  Returns an associative array where the element A_lm_1(a_1) \cap ... \cap A_lm_n(a_n) has keys give by the set of eigenvalues \{ lm_1, ..., lm_n \}.
   }
   
 	/* should we check that the a_i are axes, i.e., HasMonsterFusion(a_i)? */
-	decomps:=AssociativeArray();
-	A:=Parent(L[1]);  
-	eigs:=[1,0,1/4,1/32];
-	n:=#L;
-	dims:=[];
-	ads:=[AdMat(L[i]):i in [1..n]];
-	Lst:=[[Eigenspace(ads[i],1):i in [1..n]],[Eigenspace(ads[i],0):i in [1..n]],[Eigenspace(ads[i],1/4):i in [1..n]],[Eigenspace(ads[i],1/32):i in [1..n]]];
-	cart:=CartesianPower([1..4],n);
+	decomps := AssociativeArray();
+	A := Parent(L[1]);  
+	eigs := [1,0,1/4,1/32];
+	n := #L;
+	dims := [];
+	ads := [AdMat(L[i]):i in [1..n]];
+	Lst := [[Eigenspace(ads[i],1):i in [1..n]],[Eigenspace(ads[i],0):i in [1..n]],[Eigenspace(ads[i],1/4):i in [1..n]],[Eigenspace(ads[i],1/32):i in [1..n]]];
+	cart := CartesianPower([1..4],n);
 	for x in cart do 
-		joint_space:=&meet[Lst[x[i]][i]:i in [1..n]];
-		dim:=Dimension(joint_space);
+		joint_space := &meet[Lst[x[i]][i] : i in [1..n]];
+		dim := Dimension(joint_space);
 		if not dim eq 0 then
 			Append(~dims,dim);
-			decomps[[eigs[x[i]]:i  in [1..n]]]:=joint_space;
+			decomps[[eigs[x[i]] : i  in [1..n]]]:=joint_space;
 		end if; 
 	end for; 
 	return decomps;
 end intrinsic;
 
-intrinsic ProjectVectorToJointSpace(u::AlgGenElt,Y::SetIndx[AlgGenElt],Q::SeqEnum)->AlgGenElt
+intrinsic ProjectVectorToJointSpace(u::AlgGenElt, Y::SetIndx[AlgGenElt], Q::SeqEnum)->AlgGenElt
 {
 	Given an algebra element u, an indexed set Y= \{@a_1,a_2,...,a_k@\} of axes (or idempotents), as well as a sequence [lm_1,lm_2,...,lm_k], of
 	       	eigenvalues whose length equals the cardinality of axes, find the projection of u to the joint space A_\{lm_1,lm_2,...,lm_k\}(Y). Note that we do not check that Y consists of axes.
 																				  }
 	require #Y gt 0: "The set Y must be non-empty";
 	require #Y eq #Q: "The cardinalities of the sets of axes and eigenvalues must be equal.";
-	A:=Parent(u);
+	A := Parent(u);
 	require IsCoercible(A,Eltseq(Y[1])): "The axes must be coercible to the parent algebra of u"; 
 	require forall{x:x in Q| x in BaseField(A)}:" The eigenvalues must be in the base field of the parent algebra.";
-	ads:=[AdMat(Y[i]):i in [1..#Y]];/*The adjoints.*/
-	eigs:=[x[1]:x in Eigenvalues(ads[1])];
-	id:=IdentityMatrix(BaseField(A), Dimension(A)); 
-	projs:=[&*[(ads[i]-x*id)/(Q[i]-x): x in eigs|x ne Q[i]]:i in [1..#Y]];
+	ads := [AdMat(Y[i]):i in [1..#Y]];/*The adjoints.*/
+	eigs := [x[1]:x in Eigenvalues(ads[1])];
+	id := IdentityMatrix(BaseField(A), Dimension(A)); 
+	projs := [&*[(ads[i]-x*id)/(Q[i]-x): x in eigs|x ne Q[i]]:i in [1..#Y]];
 	return u*(&*[x: x in projs]);
 end intrinsic;
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -700,7 +707,7 @@ intrinsic SubAlgebra(L::SetIndx[AlgGenElt] )->ModTupFld
         V := sub<W| lst>;	
 	max_independent_set:=[bas[i] : i in [1..Dimension(V)]] where bas is Basis(V);
 	max_independent_set:=[A!x:x in max_independent_set];
-	bool, VV := ExtendMapToAlgebra(max_independent_set, max_independent_set);
+	bool, VV := ExtendMapToAlgebra(max_independent_set, max_independent_set: check_automorphism := false);
 	if bool eq true then 
 		return W;
 	else
@@ -792,15 +799,16 @@ intrinsic RestrictedForm(U::AlgMatElt, B::ModTupFld)-> AlgMatElt
 	return Matrix(Rationals(),[Eltseq(x):x in arr]);
 end intrinsic;
 
-intrinsic IsSubAlgebra(A::AlgGen,V::ModTupFld)->BoolElt
+intrinsic IsSubAlgebra(A::AlgGen, V::ModTupFld)->BoolElt
 {
 	 Given an algebra A and a subspace V of A, ascertain if V is a subalgebra, that is, closed under multiplication in A.
 }
 	require V subset VectorSpace(A): "V must be  a subspace of A.";
 	W:=VectorSpace(A);
 	m:=Dimension(V);
-	V:=VectorSpaceWithBasis(Basis(V));/*force a nice basis to use with V.i.*/
-	return forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!V.i)*(A!V.j)) in V}};/*marginally faster.*/
+	//V:=VectorSpaceWithBasis(Basis(V));/*force a nice basis to use with V.i.*/
+	//return forall{i:i in [1..m]|forall{j:j in [i..m]|W!Eltseq((A!V.i)*(A!V.j)) in V}};/*marginally faster.*/
+	return forall{y : y in BatchMultiply([A!x : x in Basis(V) ])| Vector(y) in V};
 end intrinsic;
 
 
@@ -818,18 +826,18 @@ intrinsic IsAutomorphic(A::AlgGen, M::AlgMatElt: gens :=Basis(A))->BoolElt
 		require Dimension(SubAlgebra(gens)) eq n: "The given set must generate A.";
 	end if;
 	ims := [gens[i]*M: i in [1..#gens]];
-	
+	ims_prods := BatchMultiply(ims);
 	// We use commutativity to reduce work
 	if #gens lt n then
 		if forall{ x: x in gens| x in Basis(A) } then
 			inds := [Position(Basis(A), gens[i]): i in [1..#gens]];
-			return forall{i: i in [1..#gens]| forall{j : j in [i..#gens]| (ims[i]*ims[j]) eq (prods[inds[i]][inds[j]])*M}} where prods is BasisProducts(A);
+			return forall{i : i in [1..#gens]| forall{j : j in [i..#gens]| ims_prods[(#gens)*(i-1)+j] eq (prods[inds[i]][inds[j]])*M}} where prods is BasisProducts(A);
 		else
-			return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] | (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M } };
+			gens_prods := BatchMultiply(gens);
+			return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens] | ims_prods[(#gens)*(i-1)+j] eq (gens_prods[(#gens)*(i-1)+j])*M}};
 		end if;
 	else
-		return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens]| (ims[i])*(ims[j]) eq (prods[i][j])*M}} where prods is BasisProducts(A);
-		//return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens]| (ims[i])*(ims[j]) eq (gens[i]*gens[j])*M}};
+		return forall{i : i in [1..#gens]| forall{ j : j in [i..#gens]| (ims_prods[n*(i-1)+j]) eq (prods[i][j])*M}} where prods is BasisProducts(A);
 	end if;
 end intrinsic;
 
@@ -1067,3 +1075,43 @@ intrinsic IsInducedFromAxisMat(A::AlgGen,M::Mtrx:form:=false,fusion_values:=<1/4
 		return true, {@x:x in idemps|SatisfiesMonsterFusionLaw(x)@};
 	end if;
 end intrinsic;
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++ Intrinsic for multiplying a number of vectors amongs themselves. This is quick, albeit, memory hogging.                             +
++                                                                                                                                     +
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
+intrinsic BatchMultiply(L:: SeqEnum[AlgGenElt])-> SeqEnum[AlgGenElt]
+{
+	Given a sequence L of algebra elements, find all the products uv of elements in L. The sequence L must be nonempty.
+}
+	require not IsEmpty(L): " The sequence L must be nonempty.";
+	A := Parent(L[1]);
+	n := Dimension(A);
+	m := #L;
+	alpha := Matrix(L);
+	bas_prods := BasisProducts(A);
+	ads := [Matrix(bas_prods[i]) : i in [1..n]];
+	all_prods := &+[KroneckerProduct(ColumnSubmatrix(alpha, k, 1), &+[KroneckerProduct(ColumnSubmatrix(alpha, l, 1), ads[k][l]) : l in [1..n]]): k in [1..n]]; 
+       return [A!all_prods[i]: i in [1..m^2]];	
+end intrinsic;
+
+intrinsic BatchMultiply(L:: SeqEnum[AlgGenElt], M:: SeqEnum[AlgGenElt])-> SeqEnum[AlgGenElt]
+{
+	Given two sequences L and M of algebra elements, return all the lm products uv in a sequence, where l and m are the lengths of L and M, respectively.
+}
+	require #L gt 0 and #M gt 0: "Both L and M must be nonempty.";
+	require Parent(L[1]) eq Parent(M[1]): "L and M must consist of elements of the same algebra.";
+	A := Parent(L[1]);
+	n := Dimension(A);
+	l := #L;
+	m := #M;
+	alpha := Matrix(L);
+	beta := Matrix(M);
+	bas_prods := BasisProducts(A);
+	ads := [Matrix(bas_prods[i]) : i in [1..n]];
+	prods_tensor := &+[ KroneckerProduct(ColumnSubmatrix(alpha, j, 1), &+[ KroneckerProduct(ColumnSubmatrix( beta, i, 1), ads[j][i]): i in [1..n]]) : j in [1..n]];
+	return [A!prods_tensor[i] : i in [1..(l*m)]];
+end intrinsic;
+		
