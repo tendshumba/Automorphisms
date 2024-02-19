@@ -357,9 +357,9 @@ end intrinsic;
 
 */
 // First we need the Fixed subalgebra of A
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen, Map
   {
-  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
+  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.  Returns the subalgebra and the inclusion map.
   }
   require Dimension(G) eq Dimension(A): "The matrix group G must be in the same dimension as A.";
   // We should really check whether G is a subgroup of automorphisms of A
@@ -370,9 +370,9 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpMat) -> AlgGen
   return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
 end intrinsic;
 
-intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> AlgGen
+intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> AlgGen, Map
   {
-  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.
+  Find the subalgebra of A which is fixed under the action of G, where G must be a subgroup of automorphisms of A.  Returns the subalgebra and the inclusion map.
   }
   if G subset MiyamotoGroup(A) then
     return FixedSubalgebra(A, G@MiyamotoActionMap(A));
@@ -384,9 +384,9 @@ intrinsic FixedSubalgebra(A::DecAlg, G::GrpPerm) -> AlgGen
   end if;
 end intrinsic;
 
-intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpMat) -> AlgGen
+intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpMat) -> AlgGen, Map
   {
-  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.
+  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.  Returns the subalgebra and the inclusion map.
   }
   require Dimension(G) eq Dimension(A): "The matrix group G must be in the same dimension as A.";
   // We should really check whether G is a subgroup of automorphisms of A
@@ -401,9 +401,9 @@ intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpMat) -> AlgGen
   return Subalgebra(A, [Eltseq(V!v) : v in Basis(fix)]);
 end intrinsic;
 
-intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpPerm) -> AlgGen
+intrinsic FixedSubalgebra(A::DecAlg, U::AlgGen, G::GrpPerm) -> AlgGen, Map
   {
-  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.
+  Given a (not necessarily axial) subalgebra U of A, which is invariant under the action of G, a subgroup of automorphisms of A, find the fixed subalgebra of U under the action of G.  Returns the subalgebra and the inclusion map.
   }
   if G subset MiyamotoGroup(A) then
     return FixedSubalgebra(A, U, G@MiyamotoActionMap(A));
@@ -591,10 +591,10 @@ intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map: check_automorphism
     dom_CoB := Matrix(Solution(Matrix(prods_basis), D_bas));
     M := dom_CoB*VerticalJoin(M, Matrix(used_im));
     
-    Dnew_bas := ExtendBasis(Dold, D)[Dimension(Dold)+1..Dimension(D)];        
+    Dnew_bas := ExtendBasis(Dold, D)[Dimension(Dold)+1..Dimension(D)];
     // Update the basis for I
     I_bas := Rows(M);
-    Inew_bas := Rows(Matrix(Dnew_bas)*M);
+    Inew_bas := Rows(Matrix(Solution(Matrix(D_bas), Dnew_bas))*M);
   end while;
 
   psi := hom<D -> D | v :-> v*M, y :-> y*M^-1>;

@@ -1,4 +1,3 @@
-
 /*
 
 The example for A_6 5A5A4A3A3A

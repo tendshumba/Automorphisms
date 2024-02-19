@@ -1,26 +1,24 @@
-
 /*
 
 The example for L_3(2) 4A3C
 
 */
+/*
 AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
+*/
 
-/*
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
 Attach("Automorphisms.m");
-*/
 
 // Alter this to the path of where your algebra is stored
 
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 
-// SetSeed(1);
 // Preliminary data
 A := LoadDecompositionAlgebra(path cat "PSL(2,7)/21/4A3C_1.json");
 F := BaseRing(A);
@@ -60,8 +58,6 @@ Vaxes := sub<VectorSpace(Algebra(A)) | [Vector(x):x in axes]>;
 out_map := hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^out])> : i in [1..21]]>;
 bool, out_map := ExtendMapToAlgebraAutomorphism(A, out_map);
 assert bool;
-assert IsAutomorphism(A, out_map: generators:=axes);
-
 
 // Computation 12.18 (c)
 // We find the involutions in G outside G0.
@@ -144,17 +140,13 @@ We turn to determining Aut(U). Note that N_{G}(E) is isomorphic to S_4, and this
 since E acts trivially on U, and N/E is a non-abelian group of order 6.
 */
 
-UAlg, U_inc := Subalgebra(A, Basis(U));
+Ualg, U_inc := Subalgebra(A, Basis(U));
 
 //Computation 12.20
-
-
-/*Note FixedSubalgebra takes DecAlg input. We want the fixed subalgebra of H in U, which is equivalent to the intersection of U with the fixed subalgebra of N in A.*/
-FixA_N, F_inc := FixedSubalgebra(A, N);
-T := FixA_N meet UAlg;
+T, T_inc := FixedSubalgebra(A, Ualg, N);
 assert Dimension(T) eq 3;
 
-Tsub := sub<VectorSpace(A) | [ Vector(t@F_inc) : t in Basis(T)]>;
+Tsub := sub<VectorSpace(A) | [ Vector(t@T_inc) : t in Basis(T)]>;
 idem_T := FindAllIdempotents(A, Tsub: extend_field:=true);
 assert #idem_T eq 8;
 assert {Frobenius(x,x) : x in idem_T} eq {0, 15, 135/16, 105/16, 75/8, 45/8, 360/37, 195/37};
@@ -174,7 +166,7 @@ assert forall{u : u in Us | Dimension(Eigenspace(u, 1)) eq 2};
 
 // Computation 12.22
 
-assert Subalgebra(UAlg, Us) eq UAlg;
+assert Subalgebra(Ualg, Us) eq Ualg;
 
 // Computation 12.24 
 Ws := [decomp[x] : x in [ <3, 4, 4>, <4, 3, 4>, <4, 4, 3>]];
@@ -183,7 +175,7 @@ Ws := [decomp[x] : x in [ <3, 4, 4>, <4, 3, 4>, <4, 4, 3>]];
 assert Subalgebra(A, &cat[ Basis(W) : W in Ws]) eq Algebra(A);
 
 // Part (b)
-id_U := IdentityHomomorphism(UAlg);
+id_U := IdentityHomomorphism(Ualg);
 
 extend_W := [ phi where so, phi := HasInducedMap(A, Ws[i], id_U) : i in [1..3] ];
 assert #extend_W eq 3;
@@ -192,37 +184,12 @@ assert forall{ ext : ext in extend_W | Dimension(ext) eq 1};
 assert forall{ ext : ext in extend_W | IsIdentity(ext.1) };
 
 // Part (c)
-
-
-
-// Got to here!
-
-
-
-
-
-
-
-// Part (c)
-w_1 :=A!Ws[1].(Random({1..2}));
-w_2 :=A!Ws[2].(Random({1..2}));
-w_3 :=A!Ws[3].(Random({1..2}));
-u :=A!U.(Random({1..Dimension(U)}));
-assert u ne A!0;
+// We check for each basis element of W_i
 // Part (c) (i)
-assert forall{v:v in [w_1,w_2,w_3]|Frobenius(v*v,u) ne 0};
+forall{ <i, w, u> : w in Basis(Ws[i]), i in [1..3], u in Basis(U) | Frobenius(A!w*A!w,A!u) ne 0};
 
 // Part (c) (ii)
-assert Frobenius((w_1*w_2)*(w_1*w_3), w_1) ne 0;
-
-
-
-
-
-
-
-
-
+forall{ <w1, w2, w3> : w1 in Basis(Ws[1]), w2 in Basis(Ws[2]), w3 in Basis(Ws[3]) | Frobenius((A!w1*A!w2)*(A!w1*A!w3),A!w1) ne 0};
 
 
 // Computation 12.26

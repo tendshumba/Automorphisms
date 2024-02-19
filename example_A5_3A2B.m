@@ -15,6 +15,11 @@ path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 A := LoadDecompositionAlgebra(path cat "A5/15/5A5A3A2B_1");
 F := BaseRing(A);
 n := Dimension(A);
+G0 := MiyamotoGroup(A);
+
+// If the algebra is Miyamoto closed, then the Miyamoto group is a permutation group on the axes
+axes := Axes(A);
+assert forall{ <i, g> : i in [1..#axes], g in Generators(G0) | axes[i]*g eq axes[Image(g,GSet(G0),i)]};
 
 // Computation 10.1 (a), (b)
 assert IsEmpty(JordanAxes(A));
@@ -22,15 +27,11 @@ axis_reps := AxisOrbitRepresentatives(A);
 assert #FindMultiples(axis_reps[1]) eq 1;
 // ie there are no multiples for the axis given
 
-axes := Axes(A);
 Vaxes := sub<VectorSpace(A)|[Vector(a) : a in axes]>;
 assert Dimension(Vaxes) eq #axes;
 
 // define a map by switching the first two axes.
-assert forall{i : i in [1..#axes] | Vaxes.i eq Vector(axes[i])};
-
 pi := Eltseq(Sym(15)!(1, 3)(2, 14)(5, 9)(6, 15)(8, 11)(10, 13));
-G0 := MiyamotoGroup(A);
 G := sub<Sym(15) | G0, pi>;
 assert IsIsomorphic(G, Sym(5));
 // So pi is an involution outside of A5.
@@ -42,10 +43,10 @@ assert so;
 
 // Computation 10.1 (c)
 // Check that psi is not induced from a (possible new) axis
-psi_mat := Matrix([Vector(A.i)@psi : i in [1..n]]);
-so := IsInducedFromAxis(A, psi_mat: automorphism_check:=false);
+so := IsInducedFromAxis(A, psi: automorphism_check:=false);
 assert not so;
 
+psi_mat := Matrix(Basis(VectorSpace(A))@psi);
 Miy_map := MiyamotoActionMap(A);
 GMat := MatrixGroup<n, F | Image(Miy_map), psi_mat>;
 G_map := hom<G->GMat | [<g, g@Miy_map> : g in Generators(G0)] cat [<G!pi,psi_mat>] >;
@@ -125,7 +126,7 @@ Ws := [W1, W2, W3];
 // Computation 10.5 (n)
 assert Dimension(Subalgebra(A, [ VectorSpace(A)!v : v in Basis(W), W in Ws])) eq n;
 
-id_U := hom< Ualg-> Ualg | [ Ualg.i : i in [1..Dimension(Ualg)]]>;
+id_U := IdentityHomomorphism(Ualg);
 
 // Computation 10.5 (b)
 // Similar for the other Wi
