@@ -41,7 +41,7 @@ d := Jords[1];
 sigma_d := MiyamotoInvolution(d, 1/4: check_fusion := false);
 
 // Computation 13.25 (b) Axes in the 15 orbit have twins
-axes_reps := AxisOrbitRepresentatives(A: Miyamoto_closed := true);
+axes_reps := AxisOrbitRepresentatives(A);
 assert #axes_reps eq 2;
 
 orbits := [ axes[Setseq(o)] : o in Orbits(G) ];
