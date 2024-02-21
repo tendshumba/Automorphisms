@@ -4,26 +4,28 @@
 The example for S_6 4A4A3A2A
 
 */
-/*
+
 AttachSpec("DecompAlgs.spec");
 AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
 Attach("AxialTools.m");
 Attach("/home/tendai/Downloads/Automorphisms.m");
-Attach("/home/tendai/Subalgebra_1.m");
-*/
+Attach("/home/tendai/coding_wip.txt");
 
+/*
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
 Attach("Automorphisms.m");
+*/
 
 // Alter this to the path of where your algebra is stored
-
+/*
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
+*/
 
 
 /*Preliminary data.*/
-A := LoadDecompositionAlgebra(path cat "S6/15+45/6A5A4A4A3A2A_1.json");
+A := LoadDecompositionAlgebra("Monster_1,4_1,32/6A5A4A4A3A2A_1.json");
 AA := Algebra(A);
 F := BaseRing(A);
 n := Dimension(A);
@@ -43,7 +45,7 @@ sigma_d := MiyamotoInvolution(d, 1/4: check_fusion := false);
 
 axes_reps := AxisOrbitRepresentatives(A);
 assert #axes_reps eq 2;
-orbits := [{@rep*g : g in G@}: rep in axes_reps];  // this can be speeded up - look in DecAlgs_group.m code for orbitsdecomp
+orbits := [{@rep*g : g in G@}: rep in axes_reps];
 assert {#x : x in orbits } eq {15, 45};
 orb_15 := [orb : orb in orbits| #orb eq 15][1];
 rep_15 := [ x : x in orb_15|x in axes_reps][1];
@@ -60,36 +62,28 @@ assert IsEmpty(orb_15 meet orb_15_twins);
 // Computation 13.25 (c) Triple cycles (involutions not involved in the original axet) are induced by twinned axes.
 Miy_elts := [MiyamotoElement(A, i): i in [1..#axes]];
 invs_G := [x: x in ConjugacyClasses(G)| x[1] eq 2];
-assert {* x[2] : x in invs_G *} eq {* 15^^2, 45*};// So two classes of involutions of size 15.
-invs_G := [ x[3] : x in invs_G];
-bool := exists(triple){t : t in invs_G| t notin Miy_elts };
+assert {* x[2] : x in invs_G0 *} eq {* 15^^2, 45*};// So two classes of involutions of size 15.
+bool := exists(triple){t[3] : t in invs_G| t[3] notin Miy_elts };
 assert bool;
-assert forall{x : x in [y: y in invs_G| y ne triple ]| x in Miy_elts};
+assert forall{x : x in [y: y in invs_G| x[3] ne triple ]| x in Miy_elts};// so that the others are induced by axes in the original axet
+//triple_map := hom< sub<V|[Vector(x) : x in axes]> -> V|[<Vector(axes[i]), Vector(axes[i^triple])>: i in [1..#axes]]> where V is VectorSpace(A);
+//bool, psi := ExtendMapToAlgebraAutomorphism(A, triple_map);// takes some time. This is a case where a matrix representation will be useful. Straight into the check we want.
+//Time: 1471.880
 
-// so that the others are induced by axes in the original axet
-triple_map := hom< sub<V|[Vector(x) : x in axes]> -> V|[<Vector(axes[i]), Vector(axes[i^triple])>: i in [1..#axes]]> where V is VectorSpace(A);
-bool, psi := ExtendMapToAlgebraAutomorphism(A, triple_map);
+Miy_map := MiyamotoActionMap(A);
+G_mat := MatrixGroup<151, F| [g@Miy_map : g in Generators(G)]>;
+bool, f := IsIsomorphic(G, G_mat);
+//Time: 0.910
 assert bool;
-
-bool, triple_axes := IsInducedFromAxis(A, psi);
-//Time: 93.35
+bool, triple_axes := IsInducedFromAxis(A, Matrix(triple@f));
+//Time: 200.690
 assert bool;
-
 assert #triple_axes eq 2 and forall{x:x in triple_axes|x notin axes };
 // Hence the 15 involutions corresponding to triple cycle are induced by a twined pair of axes.
-orb_15_new := {@ triple_axes[1]*g : g in G@}; // Speed up orbit as above
+orb_15_new := {@ triple_axes[1]*g : g in G@};
 orb_15_new_twins := {@triple_axes[2]*g : g in G@};
-assert forall{ x : x in {orb_15_new, orb_15_new_twins} | #x eq 15 and IsEmpty(x meet axes) };
+assert forall{ x:x in {orb_15_new, orb_15_new_twins} #x eq 15 and IsEmpty(x meet axes) };
 // So indeed new axes
-
-
-// **************************
-
-// Need to form new DecAlg somewhere with all the new axes.
-// Then all the permutation group stuff below will just be looking in the Miyamoto group of this new DecAlg
-
-// ***************************
-
 
 // Computation 13.25 (d) The axes in the 45 orbit have no twins.
 
@@ -106,6 +100,8 @@ assert #all_axes eq 106;
 // Thus, where we have twinned orbits, just take one. The choice does not matter. In this case, we have the 15 orbit (or the twin orbit), the new 15 orbit (any one of the twin orbits will do) and the 45.
 // In total four possible choices which will all lead to the same thing.
 axes_75 := orb_15 join orb_15_new join orb_45;
+
+// got to here
 G_75 := PermutationGroup<75| [Sym(75)![Position(axes_75, A!(Vector(axes_75[i])*Matrix(x))): i in [1..75]]: x in Generators(G0_mat)]>;
 assert GroupName(G_75) eq "S6";// Hence we have S_6 as a permutation group on 75 objects. 
 aut_G := AutomorphismGroup(G_75);
@@ -138,30 +134,32 @@ Gc_perm := PermutationGroup<106|[ [Position(all_axes, A!(Vector(all_axes[i])*Mat
 assert GroupName(Gc_perm) in {"C2*A6.C2^2", "C2*S6.C2"};// recall that Aut(S_6)=Aut(A_6) is isomorphic to A_6.C_2^2 so this is C2xAut(A_6).
 
 // Computation 13.26
-A_1_d := Eigenspace(d, 1);
-A_0_d := Eigenspace(d, 0);
-A_quart_d := Eigenspace(d, 1/4);
+evals, espaces, fus_law := IdentifyFusionLaw(d);// we know the fusion law already, so what we really want are the eigenspaces.
+//Time: 55.350
 
 // Computation 13.26 (a)
-U := A_0_d;
+U := espaces[2];
 assert Dimension(U) eq 121;
+assert forall{i :i in [1..121] |d*(A!U.i) eq A!0}; // hence U = A_0(d).
 
 // Computation 13.26 (b)
-assert Dimension(A_1_d) eq 1;
 
+A_1d := espaces[1];
+assert sub<VectorSpace(A)|Vector(d)> eq A_1d;
+
+A_quart_d := espaces[3];
 assert Dimension(A_quart_d) eq 29;
+assert forall{i : i in [1..29]| d*(A!A_quart_d.i) eq 1/4*A!A_quart_d.i};// hence A_{1/4}(d).
 
 // By construction, B := <<U>> is the 121-dim algebra discussed previously.
-assert forall{a : a in orb_45| a*d eq A!0};// Hence orb_45 is in A_0(d) and thus <<A_0(d)>> eq B.
 
-
-// I don't think we need this calculation.
-// Just need that the axes are in the correct configuration and the A6 alg is simple
-B := sub<A | orb_45>;
+B := Subalgebra(A, orb_45);
 assert Dimension(B) eq 121;
+assert forall{a : a in orb_45| a*d eq A!0};// Hence orb_45 is in A_0(d) and thus <<A_0(d)>> eq B.
 
 // Computation 13.28.
 
+time UAlg := Subalgebra(A, Basis(U));
 W := A_quart_d;
 
 // Computation 13.28 (a)
