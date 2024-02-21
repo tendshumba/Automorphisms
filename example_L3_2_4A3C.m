@@ -50,7 +50,7 @@ out := Sym(21)![ Position(Miy_elts, Miy_elts[i]@out) : i in [1..#axes]];
 
 assert out notin G0;
 G := PermutationGroup<21| G0, out>;
-assert GroupName(G) in {"SO(3,7)", "PGL(2, 7)"};  //Recall that SO(3,7) is isomorphic to PGL(2,7).
+assert GroupName(G) in {"SO(3,7)", "PGL(2,7)"};  //Recall that SO(3,7) is isomorphic to PGL(2,7).
 assert Index(G, G0) eq 2;
 
 // We check that out is indeed an automorphism of A
