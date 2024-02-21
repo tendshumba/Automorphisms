@@ -50,11 +50,11 @@ out := Sym(21)![ Position(Miy_elts, Miy_elts[i]@out) : i in [1..#axes]];
 
 assert out notin G0;
 G := PermutationGroup<21| G0, out>;
-assert GroupName(G) eq "SO(3,7)";  //Recall that SO(3,7) is isomorphic to PGL(2,7).
+assert GroupName(G) in {"SO(3,7)", "PGL(2,7)"};  //Recall that SO(3,7) is isomorphic to PGL(2,7).
 assert Index(G, G0) eq 2;
 
 // We check that out is indeed an automorphism of A
-Vaxes := sub<VectorSpace(Algebra(A)) | [Vector(x):x in axes]>;
+Vaxes := sub<VectorSpace(Algebra(A)) | [Vector(x) : x in axes]>;
 out_map := hom<Vaxes->VectorSpace(A) | [<Vector(axes[i]), Vector(axes[i^out])> : i in [1..21]]>;
 bool, out_map := ExtendMapToAlgebraAutomorphism(A, out_map);
 assert bool;
@@ -113,13 +113,13 @@ assert Dimension(U) eq 9;
 
 // Part (b) The rest of the components are as follows:
 
-// Part (b) (i) U_{(1,0,0)}(Y)=<a>, U_{(0,1,0)}(Y)=<b> and U_{(0,0,1)(Y)=<c>
+// Part (b) (i) U_{(1, 0, 0)}(Y)=<a>, U_{(0, 1, 0)}(Y)=<b> and U_{(0, 0, 1)(Y)=<c>
 // by the map above, these will be indexed <1,2,2>, <2,1,2> and <2,2,1> respectively.
 
 assert forall{x : x in [<1, 2, 2>, <2, 1, 2>, <2, 2, 1>] | Dimension(decomp[x]) eq 1};
 
-/* Part (b) (ii) U_{(0,1/4,1/4)}(Y), U{(1/4,0,1/4)}(Y) and U_{(1/4,1/4,0)}(Y). These are indexed by
-   <2,3,3>, <3,2,3> and <3,3,2>, respectively.*/
+/* Part (b) (ii) U_{(0, 1/4, 1/4)}(Y), U{(1/4, 0, 1/4)}(Y) and U_{(1/4, 1/4, 0)}(Y). These are indexed by
+   <2, 3, 3>, <3, 2, 3> and <3, 3, 2>, respectively.*/
 assert forall{x : x in [<2, 3, 3>, <3, 2, 3>, <3, 3, 2>] | Dimension(decomp[x]) eq 1};
 
 /* Part (b) (iii) U_{(1/4,0,0)}(Y), U{(0,1/4,0)}(Y) and U_{(0,0, 1/4)}(Y). These are indexed by
