@@ -86,7 +86,6 @@ end procedure;
 ===============  The main algorithms ====================
 
 */
-// FindAllAxesNuanced
 intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
   {
   Finds all axes in an axial algebra. 
@@ -448,7 +447,6 @@ intrinsic JordanAxes(A::AxlAlg: G:= MiyamotoGroup(A), form := false) -> Alg
   return {@ b : b in idems | HasJordanFusionLaw(b) @} diff {@ A!0, id@};
 end intrinsic;
 
-// DecomposeToJointEigenspaces 
 intrinsic JointPartDecomposition(L::{@Dec@}: non_trivial := true) -> Assoc
   {
   Given an indexed set of decompositions L = \{ D_1, ..., D_n\}, find the intersections of all these decompositions.  Returns an associative array of where the element D_1(x_1) \cap ... \cap D_n(x_n) has keys give by the set of eigenvalues \{ x_1, ..., x_n \}.
@@ -512,7 +510,6 @@ end function;
 Functions to extend an automorphism of a subalgebra to an automorphism of the whole algebra.
 
 */
-// ExtendMapToAlgebra
 intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map: check_automorphism:=true) -> BoolElt, .
   {
   Given a bijective map phi:B -> A on a subspace B of A, try to extend this to an automorphism of the algebra, by using the algebra multiplication.  We return true and the map if it does extend to the whole of A.  If not, we return false and the map on the largest subalgebra to which it extends.  Otherwise, we return false.
@@ -617,9 +614,6 @@ intrinsic ExtendMapToAlgebraAutomorphism(A::DecAlg, phi::Map: check_automorphism
   end if;
 end intrinsic;
 
-
-// ExtendAutToMod
-// How do we give the map phi??? as a map to a matrix?
 intrinsic HasInducedMap(A::AlgGen, M::ModTupFld, phi::Map) -> BoolElt, .
   {
   Suppose phi is an automorphism of a subalgebra B of A and M is a module of B.  Try to construct the induced map psi: M --> M such that psi(ma) = psi(m)phi(a), for all a in B and m in M.
@@ -781,7 +775,6 @@ intrinsic IsAutomorphism(A::AlgGen, phi::Map: generators:=Basis(A)) -> BoolElt
   return IsAutomorphism(A, M: generators:=generators);
 end intrinsic;
 
-// IsAutomorphic
 intrinsic IsAutomorphism(A::AlgGen, M::AlgMatElt: generators:=Basis(A)) -> BoolElt
   {
   Given an algebra A and a square matrix M compatible with A representing a map A-> A, determine if M represents an automorphism.  Optional argument for giving the generators of the algebra.
@@ -813,7 +806,6 @@ end intrinsic;
 ============ Checking axes and fusion laws ==================
 
 */
-// Monster type
 intrinsic HasMonsterFusionLaw(u::AxlAlgElt: fusion_values := {@1/4, 1/32@})-> BoolElt
   {
   Check if a axial algebra element u satisfies the Monster fusion law.  Defaults to M(1/4,1/32) fusion law.
