@@ -153,23 +153,23 @@ assert Dimension(A_1d) eq 1;
 A_quart_d := Eigenspace(d, 1/4);
 assert Dimension(A_quart_d) eq 29;
 
-// By construction, B := <<U>> is the 121-dim algebra discussed previously.
 
-B := Subalgebra(A, orb_45);
+Ualg := Subalgebra(A, orb_45);
 // All this time is Magma's internal subalgebra intrinsic
-// takes ???
-assert Dimension(B) eq 121;
-assert forall{a : a in orb_45| a*d eq A!0};// Hence orb_45 is in A_0(d) and thus <<A_0(d)>> eq B.
+// takes 550 secs
+assert Dimension(Ualg) eq 121;
+assert forall{a : a in orb_45| a*d eq A!0};
+
+// Hence orb_45 is in A_0(d) and thus Ualg is U = A_0(d)
+
 
 // Computation 13.28.
-Ualg := Subalgebra(A, Basis(U));
-// All this time is Magma's internal subalgebra intrinsic
-// takes about ???
 W := A_quart_d;
 
 // Computation 13.28 (a)
 
 bool, ext := HasInducedMap(A, W, IdentityHomomorphism(Ualg));
+// takes 480 secs
 assert bool;
 assert Dimension(ext) eq 1 and IsIdentity(ext.1);
 
@@ -190,7 +190,7 @@ assert forall{ w : w in Basis(W) | A!w*A!w ne A!0};
 
 
 // Extra
-
+/*
 // Try doing the proper thing
 new_decomps := [];
 for t in Jords join orb_15_twins join orb_15_new join orb_15_new_twins do
@@ -201,6 +201,5 @@ end for;
 // takes 60 sec
 
 time AA := AddDecompositions(A, new_decomps);
-// Seg fault!!
-
-
+// Seg fault on checking equality of algebras in the AddDecomposition intrinsic
+*/
