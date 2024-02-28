@@ -90,75 +90,56 @@ rep_45 := Representative(orb_45);
 assert #FindMultiples(rep_45) eq 1;
 // takes about 25 sec
 
+// Computation 13.25 (e)
 
+// An outer automorphism of S6 switches the single and the triple transpositions.  These are the two classes of involutions of conjugacy class size 15.
+// Such an automorphism must therefore switch the original 15 axes to one of the two (twinned) new orbits of size 15.
+// We can choose one of the new orbits of size 15.  A map to the other will be the composition of the outer automorphism g and sigma_d.
+axes_75 := orb_15 join orb_15_new join orb_45;
 
+G_to_G75 := hom<G -> Sym(75) | [ Sym(75)![Position(axes_75, a*g) : a in axes_75] : g in GeneratorsSequence(G)] >;
+G75 := Image(G_to_G75);
+assert GroupName(G75) eq "S6"; // So we have S_6 as a permutation group on 75 objects. 
 
+aut_G := AutomorphismGroup(G75);
+outs := [aut : aut in Generators(aut_G) | not IsInnerAutomorphism(aut)];
+assert  #outs eq 1;
+out := outs[1];
 
-// GOT TO HERE
+// We want to get the action on the 75 axes
+// Since the Miyamoto map is a bijection on these 75 axes to the set of all involutions, we can get see our action here
+Miy_75 := [ MiyamotoInvolution(axes_75[i], 1/32 : check_fusion := false)@@Miy_map@G_to_G75 : i in [1..75]];
 
-// Try doing the proper thing
-new_decomps := [];
-for t in Jords join orb_15_twins join orb_15_new join orb_15_new_twins do
-  S := [ Eigenspace(t, lm) : lm in [1,0,1/4,1/32]];
-  Dt := AxialDecomposition(A, S, t);
-  Append(~new_decomps, Dt);
-end for;
-// takes 60 sec
+Vaxes := sub< VectorSpace(A) | [ Vector(v) : v in axes_75]>;
+out_perm := Sym(75)![Position(Miy_75, Miy_75[i]@out) : i in [1..75]];
+out_map := hom< Vaxes -> VectorSpace(A) | [<Vaxes.i, Vaxes.(i^out_perm)> : i in [1..75]]>;
+so, out_map := ExtendMapToAlgebraAutomorphism(A, out_map);
+// takes 40 secs
+assert so;
 
-time AA := AddDecompositions(A, new_decomps);
-// Seg fault!!
+autG := PermutationGroup<75 | G75, out_perm>;
+assert Order(autG) eq 1440;
+assert GroupName(autG) eq "S6.C2";
 
+order_4s := [ x[3] : x in ConjugacyClasses(autG) | x[1] eq 4];
+assert exists(g){ g : g in order_4s | g notin G75 and g^2 in G75 };
+// so an outer automorphism g of order 4 with g^2 in G. 
 
+autG_mat := MatrixGroup<151, F | Image(Miy_map), Matrix([Vector(a)@out_map : a in Basis(A)])>;
+assert #(Vector(d)^autG_mat) eq 1;
+// So the Jordan axis is indeed fixed by the entire automorphism group autG.
+// This justifies our above exclusion of it and the other twin orbits of axes.
 
-
-
-// automorphisms are 1-1 maps, so they induce a permutation group on the set of known axes. We need only know how generators act on axes.
 all_axes := Jords join orb_15 join orb_15_twins join orb_15_new join orb_15_new_twins join orb_45;
 assert #all_axes eq 106;
 
-// Computation 13.25 (e)
-// The set of all axes, removing twins and the sigma involution, is closed under the action by permutations. The importance of removing the sigma map is because it maps all the axes with a twin to its twin.
-// Thus, where we have twinned orbits, just take one. The choice does not matter. In this case, we have the 15 orbit (or the twin orbit), the new 15 orbit (any one of the twin orbits will do) and the 45.
-// In total four possible choices which will all lead to the same thing.
-axes_75 := orb_15 join orb_15_new join orb_45;
+// The known automorphism group in the paper is G^\circ.  We call this Gc
 
-// got to here
-G_75 := PermutationGroup<75| [Sym(75)![Position(axes_75, A!(Vector(axes_75[i])*Matrix(x))): i in [1..75]]: x in Generators(G0_mat)]>;
-assert GroupName(G_75) eq "S6";// Hence we have S_6 as a permutation group on 75 objects. 
-aut_G := AutomorphismGroup(G_75);
-outs := [aut : aut in Generators(aut_G)| not IsInnerAutomorphism(aut)];
-assert  #outs eq 1;
-out := outs[1];
-taus_75 := [MiyamotoInvolution(axes_75[i], 1/32 :check_fusion := false): i in [1..75]];
-bool, gg := IsIsomorphic(G_mat, G_75);
-invs_75 := [(G0_mat!taus_75[i])@gg: i in [1..75]];
-// we have placed [t_a: a in axes_75] and the corresponding permutations in a 1-1 correspondence.
-out_perm := Sym(75)![Position(invs_75, invs_75[i]@out): i in [1..75]];
-Aalg := Algebra(A);
-bool,  out_mat :=  ExtendMapToAlgebraAutomorphism([ Aalg!Vector(axes_75[i]): i in [1..75]], [Aalg!(Vector(axes_75[i^out_perm])): i in [1..75]]: generators := [Aalg!Vector(x): x in axes]);
-assert bool;
-
-assert  Order(PermutationGroup<75| G_75, out_perm>) eq 1440;
-autG_perm := PermutationGroup<75|G_75, out_perm>;
-autG_mat := MatrixGroup<151, F|G_mat, out_mat>;
-assert GroupName(autG_perm)eq "S6.C2";
-exists(g){x[3]: x  in {t: t in ConjugacyClasses(outG_perm)|t[1] eq 4}|(x[3] notin G_75 and x[3]^2 in G_75)};// so an outer automorphism g of order 4 with g^2 in G. 
-assert #(Vector(d)^autG_mat) eq 1;
-// Hence the Jordan axis is fixed by the entire automorhism group Aut(S_6). Hence our exclusion is justified.
-
-//============================================Known automorphism group==========================================
-// The known automorphism group as a matrix. G^circ in the paper
-
-Gc_mat := MatrixGroup<151, F| autG_mat, sigma_d>;
-// However, at this stage this group has 7 generators, which makes it not fast to work with. We can reduce the generators or use the permutation representation below.
-
-Gc_perm := PermutationGroup<106|[ [Position(all_axes, A!(Vector(all_axes[i])*Matrix(x))): i in [1..106]]:x in Generators(Gc_mat)]>;
-assert GroupName(Gc_perm) in {"C2*A6.C2^2", "C2*S6.C2"};// recall that Aut(S_6)=Aut(A_6) is isomorphic to A_6.C_2^2 so this is C2xAut(A_6).
-
-
-
-
-
+Gc_mat := MatrixGroup<151, F | autG_mat, sigma_d>;
+Gc := PermutationGroup<106 | [ [Position(all_axes, A!(Vector(all_axes[i])*Matrix(x)) ): i in [1..106]]
+                                       : x in Generators(Gc_mat)]>;
+assert GroupName(Gc) in {"C2*A6.C2^2", "C2*S6.C2"};
+// Recall that Aut(S_6) = Aut(A_6) is isomorphic to A_6.C_2^2 so this is C2xAut(A_6).
 
 
 // Computation 13.26 (a)
@@ -175,20 +156,51 @@ assert Dimension(A_quart_d) eq 29;
 // By construction, B := <<U>> is the 121-dim algebra discussed previously.
 
 B := Subalgebra(A, orb_45);
+// All this time is Magma's internal subalgebra intrinsic
+// takes ???
 assert Dimension(B) eq 121;
 assert forall{a : a in orb_45| a*d eq A!0};// Hence orb_45 is in A_0(d) and thus <<A_0(d)>> eq B.
 
 // Computation 13.28.
-UAlg := Subalgebra(A, Basis(U));
+Ualg := Subalgebra(A, Basis(U));
+// All this time is Magma's internal subalgebra intrinsic
 // takes about ???
 W := A_quart_d;
 
 // Computation 13.28 (a)
 
-bool, ext := HasInducedMap(A, W, IdentityHomomorphism(UAlg));
+bool, ext := HasInducedMap(A, W, IdentityHomomorphism(Ualg));
 assert bool;
 assert Dimension(ext) eq 1 and IsIdentity(ext.1);
 
 // Computation 13.28 (b)
 // We check for a basis
 assert forall{ w : w in Basis(W) | A!w*A!w ne A!0};
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Extra
+
+// Try doing the proper thing
+new_decomps := [];
+for t in Jords join orb_15_twins join orb_15_new join orb_15_new_twins do
+  S := [ Eigenspace(t, lm) : lm in [1,0,1/4,1/32]];
+  Dt := AxialDecomposition(A, S, t);
+  Append(~new_decomps, Dt);
+end for;
+// takes 60 sec
+
+time AA := AddDecompositions(A, new_decomps);
+// Seg fault!!
+
+

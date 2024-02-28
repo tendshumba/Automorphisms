@@ -56,7 +56,7 @@ assert IsInducedFromAxis(A, phi_map) eq false;
 // So we have indeed constructed an algebra automorphism not induced by an axis
 
 G := PermutationGroup<21 | G0, phi>;
-assert GroupName(G) eq "SO(3,7)";
+assert GroupName(G) in {"SO(3,7)", "PGL(2,7)"}; // These are isomorphic
 
 // We now set up a decomposition with respect to a set of axes generating a 2A algebra and whose tau involutions generate an elementary abelian group 2^2.
 
