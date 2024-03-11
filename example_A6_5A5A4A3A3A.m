@@ -184,7 +184,7 @@ length_four_idemps_U := FindAllIdempotents(A, U: length := 4, extend_field := tr
 //
 // ****************************
 
-assert forall{z : z in zs | A!(Algebra(A)!z) in length_for_idemps_U};
+assert forall{z : z in zs | A!(Algebra(A)!z) in length_four_idemps_U};
 assert #length_four_idemps_U eq 3;
 // So that the zs are everything.
 
