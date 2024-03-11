@@ -3,13 +3,6 @@
 The example for L_3(2) 4B3A
 
 */
-/*
-AttachSpec("DecompAlgs.spec");
-AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
-Attach("AxialTools.m");
-Attach("/home/tendai/Downloads/Automorphisms.m");
-*/
-
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
@@ -17,7 +10,6 @@ Attach("Automorphisms.m");
 
 // Alter this to the path of where your algebra is stored
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
-
 
 // Preliminary data
 A := LoadDecompositionAlgebra(path cat "PSL(2,7)/21/4B3A_1.json");

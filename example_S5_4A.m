@@ -11,7 +11,6 @@ Attach("Automorphisms.m");
 // Alter this to the path of where your algebra is stored
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 
-
 A := LoadDecompositionAlgebra(path cat "S5/10+15/6A5A4A_1");
 F := BaseRing(A);
 n := Dimension(A);

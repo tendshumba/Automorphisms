@@ -3,13 +3,6 @@
 The example for A_6 5A5A4A3A3A
 
 */
-/*
-AttachSpec("DecompAlgs.spec");
-AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
-Attach("AxialTools.m");
-Attach("/home/tendai/Downloads/Automorphisms.m");
-*/
-
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
@@ -20,7 +13,7 @@ Attach("Automorphisms.m");
 path := "../DecompAlgs/library/Monster_1,4_1,32/RationalField()/";
 
 
-/*Preliminary data.*/
+// Preliminary data
 A := LoadDecompositionAlgebra(path cat "A6/45/5A5A4A3A3A_sub.json");
 F := BaseRing(A);
 n := Dimension(A);
@@ -181,10 +174,15 @@ assert forall{z : z in zs | Frobenius(x, x) eq 4 where x is A!(Algebra(A)!z)};
 // Length of each identity element of U_i is 4.
 
 
-// Computation 13.5 We show that the zs are precisely the only idempotents of length 4 in U. This is the longest computation in all the project, and requires a lot of memory (a cluster), and will take as long as a week.
+// Computation 13.5
+// We show that the zs are precisely the only idempotents of length 4 in U.
 
-// try Ualg??
+// ****************************
+//
+// WARNING: the following takes ~140 hours = 6 days and requires ~132Gb of RAM
 length_four_idemps_U := FindAllIdempotents(A, U: length := 4, extend_field := true );
+//
+// ****************************
 
 assert forall{z : z in zs | A!(Algebra(A)!z) in length_for_idemps_U};
 assert #length_four_idemps_U eq 3;

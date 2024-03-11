@@ -3,15 +3,6 @@
 The example for S_6 4A4A3A2A
 
 */
-/*
-AttachSpec("DecompAlgs.spec");
-AttachSpec("/home/tendai/AxialTools/AxialTools.spec");
-Attach("AxialTools.m");
-Attach("/home/tendai/Downloads/Automorphisms.m");
-Attach("/home/tendai/coding_wip.txt");
-*/
-
-
 AttachSpec("../DecompAlgs/DecompAlgs.spec");
 AttachSpec("../AxialTools/AxialTools.spec");
 Attach("../DecompAlgs/AxialTools.m");
