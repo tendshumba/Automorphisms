@@ -61,7 +61,8 @@ function IdealToIdempotents(I, A, bas: extend_field := false);
 	ACl := ChangeRing(A, FClos);
 	
 	// Do the simple coercion
-  idems := {@ ACl | &+[ v[i]*ACl!bas[i] : i in [1..m]]: v in varCl @};
+	// Need Eltseq to allow coercion over eg function fields
+  idems := {@ ACl | &+[ v[i]*ACl!Eltseq(bas[i]) : i in [1..m]]: v in varCl @};
   return idems;
 end function;
 
