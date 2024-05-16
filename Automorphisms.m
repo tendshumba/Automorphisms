@@ -727,15 +727,15 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@
 	so, fusion_values := CanChangeUniverse(fusion_values, F);
 	require so: "The fusion values must be coercible into the base ring of the algebra.";
 	
-	neg := Eigenspace(M, -1);
-  ann := AnnihilatorOfSpace(A, neg);
-  
-  so, one := HasOne(A);
+	so, one := HasOne(A);
 	if so then
+	  neg := Eigenspace(M, -1);
+    ann := AnnihilatorOfSpace(A, neg);
 		idemps := FindAllIdempotents(A,
 		            sub<VectorSpace(A) | Vector(one)> + ann : length:=length);
 	else
-		idemps := FindAllIdempotents(A, ann: length:=length);
+	  pos := Eigenspace(M, 1);
+		idemps := FindAllIdempotents(A, pos: length:=length);
 	end if;
 	
 	if IsEmpty(idemps) then

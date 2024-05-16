@@ -182,7 +182,8 @@ assert forall{ w : w in Basis(W) | A!w*A!w ne A!0};
 
 // Extra
 /*
-// Try doing the proper thing
+// Add the new axes to form a new axial algebra
+
 new_decomps := [];
 for t in Jords join orb_15_twins join orb_15_new join orb_15_new_twins do
   S := [ Eigenspace(t, lm) : lm in [1,0,1/4,1/32]];
@@ -191,6 +192,5 @@ for t in Jords join orb_15_twins join orb_15_new join orb_15_new_twins do
 end for;
 // takes 60 sec
 
-time AA := AddDecompositions(A, new_decomps);
-// Seg fault on checking equality of algebras in the AddDecomposition intrinsic
+AA := AddDecompositions(A, new_decomps);
 */
