@@ -108,6 +108,8 @@ intrinsic FindAllAxes(A::AxlAlg) -> SetIndx
   axes_reps := AxisOrbitRepresentatives(A);
   
   found := {@ @};
+  
+  // Why do we search over all axis_reps? We only need to consider ONE axis.
   for a in axes_reps do
     dec := Decomposition(a);
     
@@ -228,7 +230,7 @@ intrinsic FindAllIdempotents(A::AlgGen, U::ModTupFld: extra_rels:=[], extend_fie
   n := Dimension(A);
 	m := Dimension(U);
 
-  require m le n: "U must be a subspace of A"; 
+  require forall{ u : u in Basis(A) | IsCoercible(A, Eltseq(u))}: "U must be a subspace of A";
 	if m eq 0 then
 	  return {@ A | @};
 	end if;
@@ -733,9 +735,13 @@ intrinsic IsInducedFromAxis(A::DecAlg, M::AlgMatElt: fusion_values:={@1/4, 1/32@
     ann := AnnihilatorOfSpace(A, neg);
 		idemps := FindAllIdempotents(A,
 		            sub<VectorSpace(A) | Vector(one)> + ann : length:=length);
+		// Can remove 0 and one
+		idemps diff:= {@ A!0, one @};
 	else
 	  pos := Eigenspace(M, 1);
 		idemps := FindAllIdempotents(A, pos: length:=length);
+		// Can remove 0
+		idemps diff:= {@ A!0 @};
 	end if;
 	
 	if IsEmpty(idemps) then
